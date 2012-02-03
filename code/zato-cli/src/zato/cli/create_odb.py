@@ -32,7 +32,7 @@ from sqlalchemy.orm import sessionmaker
 
 # Zato
 from zato.cli import ZatoCommand, common_odb_opts
-from zato.common.odb.model import Base, ZatoInstallState
+from zato.common.odb.model import Base#, ZatoInstallState
 
 ODB_VERSION = "1.0"
 
@@ -43,6 +43,7 @@ class CreateODB(ZatoCommand):
     description = "Creates a Zato Operational Database (ODB)."
 
     def execute(self, args):
+        '''
         engine = self._get_engine(args)
         session = self._get_session(engine)
 
@@ -66,6 +67,7 @@ class CreateODB(ZatoCommand):
             session.commit()
 
             print("\nSuccessfully created the ODB.")
+            '''
 
 def main():
     CreateODB().run()

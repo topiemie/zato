@@ -226,7 +226,7 @@ class ZatoCommand(object):
     def _get_session(self, engine):
         Session = sessionmaker()
         Session.configure(bind=engine)
-        return Session()
+        return Session
 
     def _check_passwords(self, args, check_password):
         """ Get the password from a user for each argument that needs a password.

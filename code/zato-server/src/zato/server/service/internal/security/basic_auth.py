@@ -34,7 +34,7 @@ from lxml.objectify import Element
 # Zato
 from zato.common import ZatoException, ZATO_OK
 from zato.common.broker_message import MESSAGE_TYPE, SECURITY
-from zato.common.odb.model import Cluster, HTTPBasicAuth
+from zato.common.odb.model import Cluster, BasicAuth
 from zato.common.odb.query import basic_auth_list
 from zato.common.util import TRACE1
 from zato.server.service.internal import _get_params, AdminService, ChangePasswordBase
@@ -82,17 +82,22 @@ class Create(AdminService):
                 
                 # Let's see if we already have a definition of that name before committing
                 # any stuff into the database.
-                existing_one = session.query(HTTPBasicAuth).\
+                existing_one = session.query(BasicAuth).\
                     filter(Cluster.id==cluster_id).\
-                    filter(HTTPBasicAuth.name==name).first()
+                    filter(BasicAuth.name==name).first()
                 
                 if existing_one:
                     raise Exception('HTTP Basic Auth definition [{0}] already exists on this cluster'.format(name))
                 
                 auth_elem = Element('basic_auth')
                 
-                auth = HTTPBasicAuth(None, name, params['is_active'], params['username'], 
-                                    params['domain'], uuid4().hex, None, cluster)
+                auth = BasicAuth()
+                auth.name = nam
+                auth.is_active = params['is_active']
+                auth.username = params['username']
+                auth.domain = params['domain']
+                auth.password = uuid4().hex
+                auth.cluster = cluster
                 
                 session.add(auth)
                 session.commit()
@@ -130,10 +135,10 @@ class Edit(AdminService):
                 name = new_params['name']
                 cluster_id = new_params['cluster_id']
                 
-                existing_one = session.query(HTTPBasicAuth).\
+                existing_one = session.query(BasicAuth).\
                     filter(Cluster.id==cluster_id).\
-                    filter(HTTPBasicAuth.name==name).\
-                    filter(HTTPBasicAuth.id != def_id).\
+                    filter(BasicAuth.name==name).\
+                    filter(BasicAuth.id != def_id).\
                     first()
                 
                 if existing_one:
@@ -141,7 +146,7 @@ class Edit(AdminService):
                 
                 auth_elem = Element('basic_auth')
                 
-                definition = session.query(HTTPBasicAuth).filter_by(id=def_id).one()
+                definition = session.query(BasicAuth).filter_by(id=def_id).one()
                 old_name = definition.name
                 
                 definition.name = name
@@ -175,7 +180,7 @@ class ChangePassword(ChangePasswordBase):
         def _auth(instance, password):
             instance.password = password
             
-        return self._handle(HTTPBasicAuth, _auth, 
+        return self._handle(BasicAuth, _auth, 
                             SECURITY.BASIC_AUTH_CHANGE_PASSWORD, **kwargs)
 
 class Delete(AdminService):
@@ -191,8 +196,8 @@ class Delete(AdminService):
                 
                 id = params['id']
                 
-                auth = session.query(HTTPBasicAuth).\
-                    filter(HTTPBasicAuth.id==id).\
+                auth = session.query(BasicAuth).\
+                    filter(BasicAuth.id==id).\
                     one()
                 
                 session.delete(auth)

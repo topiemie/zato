@@ -44,7 +44,7 @@ from zato.admin.web.forms.security.basic_auth import CreateForm, EditForm
 from zato.admin.web.views import change_password as _change_password, meth_allowed
 from zato.common import zato_namespace, zato_path, ZatoException, ZATO_NOT_GIVEN
 from zato.admin.web import invoke_admin_service
-from zato.common.odb.model import Cluster, HTTPBasicAuth
+from zato.common.odb.model import Cluster, BasicAuth
 from zato.common.util import TRACE1, to_form
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,14 @@ def index(req):
                 username = definition_elem.username.text
                 domain = definition_elem.domain.text
 
-                items.append(HTTPBasicAuth(id, name, is_active, username, domain))
+                item = BasicAuth()
+                item.id = id
+                item.name = name
+                item.is_active = is_active
+                item.username = username
+                item.domain = domain
+                
+                items.append(item)
 
     return_data = {'zato_clusters':zato_clusters,
         'cluster_id':cluster_id,

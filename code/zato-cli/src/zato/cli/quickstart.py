@@ -31,6 +31,9 @@ from uuid import uuid4
 # M2Crypto
 from M2Crypto import RSA
 
+# Elixir
+import elixir
+
 # Zato
 from zato.cli import ZatoCommand, common_odb_opts, broker_opts, create_odb, \
      create_lb, ca_create_ca, ca_create_lb_agent, ca_create_server, \
@@ -158,7 +161,18 @@ class Quickstart(ZatoCommand):
     def execute(self, args):
         try:
 
+            engine = self._get_engine(args)
+            session = self._get_session(engine)
             
+            elixir.session = session
+            elixir.metadata.bind = engine
+            elixir.options_defaults.update({
+                'shortnames': True
+            })
+            
+            elixir.setup_all()
+            elixir.create_all()
+
             # Make sure the ODB tables exists.
             # Note: Also make sure that's always at the very top of the method
             # as otherwise the 'quickstart' command will fail on a pristine
@@ -168,17 +182,14 @@ class Quickstart(ZatoCommand):
             args.cluster_name = 'ZatoQuickstart'
             args.server_name = 'ZatoServer'
             
-            engine = self._get_engine(args)
-
             print('\nPinging database..')
             engine.execute(ping_queries[args.odb_type])
             print('Ping OK\n')
             
-            session = self._get_session(engine)
-
-            next_id = self.get_next_id(session, Cluster, Cluster.name, 
-                                       'ZatoQuickstartCluster-%', Cluster.id.desc(),
-                                       '#')
+            '''
+            next_id = 11#self.get_next_id(session, Cluster, Cluster.name, 
+                        #               'ZatoQuickstartCluster-%', Cluster.id.desc(),
+                        #               '#')
             cluster_name = 'ZatoQuickstartCluster-#{next_id}'.format(next_id=next_id)
 
 
@@ -252,25 +263,33 @@ class Quickstart(ZatoCommand):
             #
             # Cluster
             #
-            cluster = Cluster(None, cluster_name,
-                              'An automatically generated quickstart cluster',
-                              args.odb_type, args.odb_host, args.odb_port, args.odb_user,
-                              args.odb_dbname, args.odb_schema, args.broker_host,
-                              args.broker_start_port, cb.token,
-                              'localhost', 20151,  11223)
+            cluster = Cluster()
+            cluster.name = cluster_name
+            cluster.description = 'An automatically generated quickstart cluster'
+            cluster.odb_type = args.odb_type
+            cluster.odb_host = args.odb_host
+            cluster.odb_port = args.odb_port
+            cluster.odb_user = args.odb_user
+            cluster.odb_db_name = args.odb_dbname
+            cluster.odb_schema = args.odb_schema
+            cluster.broker_host = args.broker_host
+            cluster.broker_start_port = args.broker_start_port
+            cluster.broker_token = cb.token
+            cluster.lb_host = 'localhost'
+            cluster.lb_agent_port = 20151
+            cluster.lb_port = 11223
 
             #
             # Server
             #
-            server = Server(None, 
-                            'ZatoQuickstartServer-(cluster-#{next_id})'.format(next_id=next_id), 
-                            cluster,
-                            cs.odb_token,
-                            'ACCEPTED',
-                            datetime.now(),
-                            'zato-quickstart/' + current_host())
+            server = Server()
+            server.name = 'ZatoQuickstartServer-(cluster-#{next_id})'.format(next_id=next_id)
+            server.cluster = cluster
+            server.odb_token = cs.odb_token
+            server.last_join_status = 'ACCEPTED'
+            server.last_join_mod_date = datetime.now()
+            server.last_join_mod_by = 'zato-quickstart/' + current_host())
             session.add(server)
-            
             
             #
             # SOAP Services
@@ -401,7 +420,9 @@ class Quickstart(ZatoCommand):
             #
             # TechnicalAccount
             #
-            salt = uuid4().hex
+            '''
+            
+            '''salt = uuid4().hex
             password = tech_account_password(tech_account_password_clear, salt)
             tech_account = TechnicalAccount(None, tech_account_name, True, 
                 password, salt, security_def_type.tech_account, cluster)
@@ -437,21 +458,27 @@ class Quickstart(ZatoCommand):
             #for soap_channel in zato_soap_channels:
             #    chan_url_sec = HTTPSOAPSecurity(soap_channel, sec_def)
             #    session.add(chan_url_sec)
+            
                 
             # Ping services
             #self.add_ping(session, cluster)
             
             # Commit all the stuff.
             session.commit()
+            
+            '''
 
             print('ODB objects created')
             print('')
 
             print('Quickstart OK. You can now start the newly created Zato components.\n')
+            
+            '''
             print("""To start the server, type 'zato start {server_dir}'.
 To start the load-balancer's agent, type 'zato start {lb_dir}'.
 To start the ZatoAdmin web console, type 'zato start {zato_admin_dir}'.
             """.format(server_dir=server_dir, lb_dir=lb_dir, zato_admin_dir=zato_admin_dir))
+            '''
             
         except Exception, e:
             print("\nAn exception has been caught, quitting now!\n")

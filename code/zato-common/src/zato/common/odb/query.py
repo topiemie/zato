@@ -23,10 +23,17 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from sqlalchemy.sql.expression import case, literal_column
 
 # Zato
-from zato.common.odb.model import(ChannelAMQP, ChannelWMQ, ChannelZMQ, Cluster, 
-    ConnDefAMQP, ConnDefWMQ, CronStyleJob, HTTPBasicAuth, HTTPSOAP, IntervalBasedJob, 
-    Job, OutgoingAMQP,  OutgoingFTP, OutgoingS3, OutgoingWMQ, OutgoingZMQ, 
-    Service, TechnicalAccount, WSSDefinition)
+from zato.common.odb.model import(
+    #ChannelAMQP, ChannelWMQ, ChannelZMQ, 
+    Cluster, 
+    #ConnDefAMQP, ConnDefWMQ, CronStyleJob, 
+    #HTTPBasicAuth, 
+    #HTTPSOAP, 
+    #IntervalBasedJob, 
+    #Job, OutgoingAMQP,  OutgoingFTP, OutgoingS3, OutgoingWMQ, OutgoingZMQ, 
+    #Service, 
+    #TechnicalAccount, WSSDefinition
+    )
 
 # ##############################################################################
 

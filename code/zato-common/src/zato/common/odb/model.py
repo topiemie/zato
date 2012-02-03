@@ -30,6 +30,11 @@ from sqlalchemy import Table, Column, Integer, String, DateTime, MetaData, \
 from sqlalchemy.ext.declarative import ConcreteBase, declarative_base
 from sqlalchemy.orm import backref, relationship
 
+# Elixir
+from elixir import Boolean, Entity, DateTime, Field, Integer, ManyToOne, OneToMany, \
+     Unicode, using_options, using_table_options
+from elixir.ext.versioned import acts_as_versioned
+
 # Zato
 from zato.common.util import make_repr, object_attrs
 from zato.common.odb import AMQP_DEFAULT_PRIORITY, S3_DEFAULT_KEY_SYNC_TIMEOUT, \
@@ -39,6 +44,7 @@ Base = declarative_base()
 
 ################################################################################
 
+'''
 def to_json(model):
     """ Returns a JSON representation of an SQLAlchemy-backed object.
     """
@@ -50,7 +56,9 @@ def to_json(model):
         json['fields'][col.name] = getattr(model, col.name)
 
     return dumps([json])
+'''
 
+'''
 class ZatoInstallState(Base):
     """ Contains a row for each Zato installation belonging to that particular
     ODB. For instance, installing Zato 1.0 will add a new row, installing 1.1
@@ -70,237 +78,127 @@ class ZatoInstallState(Base):
         self.install_time = install_time
         self.source_host = source_host
         self.source_user = source_user
+'''
 
-class Cluster(Base):
+class Cluster(Entity):
     """ Represents a Zato cluster.
     """
-    __tablename__ = 'cluster'
+    acts_as_versioned()
+    using_options(tablename='cluster')
+    
+    name = Field(Unicode(200), unique=True, nullable=False)
+    description = Field(Unicode(1000), nullable=True)
+    odb_type = Field(Unicode(30), nullable=False)
+    odb_host = Field(Unicode(200), nullable=False)
+    odb_port = Field(Integer(), nullable=False)
+    odb_user = Field(Unicode(200), nullable=False)
+    odb_db_name = Field(Unicode(200), nullable=False)
+    odb_schema = Field(Unicode(200), nullable=False)
+    broker_host = Field(Unicode(200), nullable=False)
+    broker_start_port = Field(Integer(), nullable=False)
+    broker_token = Field(Unicode(32), nullable=False)
+    lb_host = Field(Unicode(200), nullable=False)
+    lb_agent_port = Field(Integer(), nullable=False)
+    lb_port = Field(Integer(), nullable=False)
+    update_auth_ctx = Field(Unicode(2000), nullable=False)
+    
+    server_list = OneToMany('Server')
+    http_soap_list = OneToMany('HTTPSOAP')
 
-    id = Column(Integer,  Sequence('cluster_id_seq'), primary_key=True)
-    name = Column(String(200), unique=True, nullable=False)
-    description = Column(String(1000), nullable=True)
-    odb_type = Column(String(30), nullable=False)
-    odb_host = Column(String(200), nullable=False)
-    odb_port = Column(Integer(), nullable=False)
-    odb_user = Column(String(200), nullable=False)
-    odb_db_name = Column(String(200), nullable=False)
-    odb_schema = Column(String(200), nullable=True)
-    broker_host = Column(String(200), nullable=False)
-    broker_start_port = Column(Integer(), nullable=False)
-    broker_token = Column(String(32), nullable=False)
-    lb_host = Column(String(200), nullable=False)
-    lb_agent_port = Column(Integer(), nullable=False)
-    lb_port = Column(Integer(), nullable=False)
-
-    def __init__(self, id=None, name=None, description=None, odb_type=None,
-                 odb_host=None, odb_port=None, odb_user=None, odb_db_name=None,
-                 odb_schema=None, broker_host=None, broker_start_port=None,
-                 broker_token=None, lb_host=None, lb_agent_port=None,
-                 lb_port=None):
-        self.id = id
-        self.name = name
-        self.description = description
-        self.odb_type = odb_type
-        self.odb_host = odb_host
-        self.odb_port = odb_port
-        self.odb_user = odb_user
-        self.odb_db_name = odb_db_name
-        self.odb_schema = odb_schema
-        self.broker_host = broker_host
-        self.broker_start_port = broker_start_port
-        self.broker_token = broker_token
-        self.lb_host = lb_host
-        self.lb_agent_port = lb_agent_port
-        self.lb_port = lb_port
-
-    def __repr__(self):
-        return make_repr(self)
-
-    def to_json(self):
-        return to_json(self)
-
-class Server(Base):
+class Server(Entity):
     """ Represents a Zato server.
     """
-    __tablename__ = 'server'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id'), {})
+    acts_as_versioned()
+    using_options(tablename='server')
+    
+    update_auth_ctx = Field(Unicode(2000), nullable=False)
+    name = Field(Unicode(200), unique=True, nullable=False)
+    
+    last_join_status = Field(Unicode(40), nullable=False)
+    last_join_mod_date = Field(DateTime(timezone=True), nullable=False)
+    last_join_mod_by = Column(String(200), nullable=False)
+    
+    odb_token = Field(Unicode(32), nullable=False)
+    update_auth_ctx = Field(Unicode(2000), nullable=False)
+    
+    cluster = ManyToOne('Cluster', required=True)
 
-    id = Column(Integer,  Sequence('server_id_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-
-    last_join_status = Column(String(40), nullable=True)
-    last_join_mod_date = Column(DateTime(timezone=True), nullable=True)
-    last_join_mod_by = Column(String(200), nullable=True)
-
-    odb_token = Column(String(32), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('servers', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, cluster=None, odb_token=None,
-                 last_join_status=None, last_join_mod_date=None, last_join_mod_by=None):
-        self.id = id
-        self.name = name
-        self.cluster = cluster
-        self.odb_token = odb_token
-        self.last_join_status = last_join_status
-        self.last_join_mod_date = last_join_mod_date
-        self.last_join_mod_by = last_join_mod_by
-
-    def __repr__(self):
-        return make_repr(self)
 
 ################################################################################
 
-class SecurityBase(ConcreteBase, Base):
-    """ A base class for any security definition.
+class HTTPSOAPSecurity(Entity):
+    """ A base class for any concrete HTTP-related authentication methods.
     """
-    __tablename__ = 'sec_base'
-    __mapper_args__ = {'polymorphic_identity':'sec_base', 'concrete':False}
-
-    id = Column(Integer,  Sequence('sec_base_id_seq'), primary_key=True)
-    sec_type = Column(String(45), nullable=False)
+    acts_as_versioned()
+    using_options(inheritance='multi', tablename='http_sec')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
     
-    def __init__(self, id=None, sec_type=None):
-        self.id = id
-        self.sec_type = sec_type
-
-    def __repr__(self):
-        return make_repr(self)
-
-################################################################################
-
-class HTTPSOAP(Base):
-    """ An incoming or outgoing HTTP/SOAP connection.
-    """
-    __tablename__ = 'http_soap'
-    __table_args__ = (UniqueConstraint('name', 'connection', 'cluster_id'),
-                      UniqueConstraint('url_path', 'connection', 'soap_action', 'cluster_id'), {})
-
-    id = Column(Integer,  Sequence('http_soap_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-    is_internal = Column(Boolean(), nullable=False)
+    name = Field(Unicode(200), nullable=False)
+    is_active = Field(Boolean(), nullable=False)
     
-    connection = Column(String(20), nullable=False) # Channel or outgoing
-    transport = Column(String(20), nullable=False) # HTTP or SOAP
+    http_soap_list = OneToMany('HTTPSOAP')
+    cluster = ManyToOne('Cluster', required=True)
     
-    url_path = Column(String(200), nullable=False)
-    method = Column(String(200), nullable=True)
-
-    soap_action = Column(String(200), nullable=True)
-    soap_version = Column(String(20), nullable=True)
+class BasicAuth(HTTPSOAPSecurity):
+    acts_as_versioned()
+    using_options(inheritance='multi', tablename='basic_auth')
     
-    service_id = Column(Integer, ForeignKey('service.id', ondelete='CASCADE'), nullable=False)
-    service = relationship('Service', backref=backref('http_soap', order_by=name, cascade='all, delete, delete-orphan'))
+    username = Field(Unicode(200), nullable=False)
+    domain = Field(Unicode(200), nullable=False)
+    password = Field(Unicode(200), nullable=False)
     
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('http_soap_list', order_by=name, cascade='all, delete, delete-orphan'))
-    
-    security_id = Column(Integer, ForeignKey('sec_base.id', ondelete='CASCADE'), nullable=False)
-    sec_type = Column(String(45), nullable=False)
-
-    def __init__(self, id=None, name=None, is_active=None, is_internal=None, 
-                 connection=None, transport=None, url_path=None, method=None, 
-                 soap_action=None, soap_version=None, service_id=None, service=None,
-                 cluster_id=None, cluster=None, service_name=None, security_id=None,
-                 security_name=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.is_internal = is_internal
-        self.connection = connection
-        self.transport = transport
-        self.url_path = url_path
-        self.method = method
-        self.soap_action = soap_action
-        self.soap_version = soap_version
-        self.service_id = service_id
-        self.service = service
-        self.cluster_id = cluster_id
-        self.cluster = cluster
-        self.service_name = service_name # Not used by the DB
-        self.security_id = security_id # Not used by the DB
-        self.security_name = security_name # Not used by the DB
-
-################################################################################
-
-class WSSDefinition(Base):
+class WSSDefinition(HTTPSOAPSecurity):
     """ A WS-Security definition.
     """
-    __tablename__ = 'wss_def'
-    __table_args__ = (UniqueConstraint('cluster_id', 'name'), {})
-    __mapper_args__ = {'polymorphic_identity':'wss', 'concrete':True}
+    acts_as_versioned()
+    using_options(inheritance='multi', tablename='wss_def')
+    
+    username = Field(Unicode(200), nullable=False)
+    domain = Field(Unicode(200), nullable=False)
+    password = Field(Unicode(200), nullable=False)
+    password_type = Field(Unicode(45), nullable=False)
+    reject_empty_nonce_ts = Field(Boolean(), nullable=False)
+    reject_stale_username = Field(Boolean(), nullable=False)
+    expiry_limit = Field(Integer(), nullable=False)
+    nonce_freshness = Field(Integer(), nullable=True)
+    
+    # To make autocompletion work.
+    password_type_raw = None # Not used by the DB
+    
+################################################################################
 
-    id = Column(Integer,  Sequence('wss_def_id_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-    username = Column(String(200), nullable=False)
-    password = Column(String(200), nullable=False)
-    password_type = Column(String(45), nullable=False)
-    reject_empty_nonce_ts = Column(Boolean(), nullable=False)
-    reject_stale_username = Column(Boolean(), nullable=True)
-    expiry_limit = Column(Integer(), nullable=False)
-    nonce_freshness = Column(Integer(), nullable=True)
 
-    sec_type = Column(String(45), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('wss_defs', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, username=None,
-                 password=None, password_type=None, reject_empty_nonce_ts=None,
-                 reject_stale_username=None, expiry_limit=None,
-                 nonce_freshness=None, sec_type=None, cluster=None, password_type_raw=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.username = username
-        self.password = password
-        self.password_type = password_type
-        self.reject_empty_nonce_ts = reject_empty_nonce_ts
-        self.reject_stale_username = reject_stale_username
-        self.expiry_limit = expiry_limit
-        self.nonce_freshness = nonce_freshness
-        self.sec_type = sec_type
-        self.cluster = cluster
-        self.password_type_raw = password_type_raw
-
-    def __repr__(self):
-        return make_repr(self)
-
-class HTTPBasicAuth(Base):
-    """ An HTTP Basic Auth definition.
+class HTTPSOAP(Entity):
+    """ An incoming or outgoing HTTP/SOAP connection.
     """
-    __tablename__ = 'http_basic_auth_def'
-    __table_args__ = (UniqueConstraint('cluster_id', 'name'), {})
-    __mapper_args__ = {'polymorphic_identity':'basic_auth', 'concrete':True}
+    acts_as_versioned()
+    using_options(tablename='http_soap')
+    using_table_options(UniqueConstraint('name', 'connection', 'cluster_id'),
+                         UniqueConstraint('url_path', 'connection', 'soap_action', 'cluster_id'))
+                         
+    name = Field(Unicode(200), nullable=False)
+    is_active = Field(Boolean(), nullable=False)
+    is_internal = Field(Boolean(), nullable=False)
+    
+    connection = Field(Unicode(20), nullable=False) # Channel or outgoing
+    transport = Field(Unicode(20), nullable=False) # HTTP or SOAP
+     
+    url_path = Field(Unicode(200), nullable=False)
+    method = Field(Unicode(200), nullable=False)
+     
+    soap_action = Field(Unicode(200), nullable=True)
+    soap_version = Field(Unicode(20), nullable=True)
+    
+    security = ManyToOne('HTTPSOAPSecurity', required=True)
+    cluster = ManyToOne('Cluster', required=True)
+    
+    # To make autocompletion work.
+    service_name = None # Not used by the DB
+    security_id = None # Not used by the DB
+    security_name = None # Not used by the DB
 
-    id = Column(Integer,  Sequence('http_b_auth_def_id_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-    username = Column(String(200), nullable=False)
-    domain = Column(String(200), nullable=False)
-    password = Column(String(200), nullable=False)
 
-    sec_type = Column(String(45), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('http_basic_auth_defs', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, username=None,
-                 domain=None, password=None, sec_type=None, cluster=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.username = username
-        self.domain = domain
-        self.password = password
-        self.sec_type = sec_type
-        self.cluster = cluster
-
-    def __repr__(self):
-        return make_repr(self)
+'''
     
 class TechnicalAccount(Base):
     """ Stores information about technical accounts, used for instance by Zato
@@ -335,7 +233,9 @@ class TechnicalAccount(Base):
         return to_json(self)
 
 ################################################################################
+'''
 
+'''
 class SQLConnectionPool(Base):
     """ An SQL connection pool.
     """
@@ -401,7 +301,12 @@ class SQLConnectionPoolPassword(Base):
 
 
 ################################################################################
+'''
 
+
+
+
+'''
 class Service(Base):
     """ A set of basic informations about a service available in a given cluster.
     """
@@ -872,3 +777,4 @@ class ChannelZMQ(Base):
         self.socket_type = socket_type
         self.sub_key = sub_key
         self.service_name = service_name # Not used by the DB
+'''

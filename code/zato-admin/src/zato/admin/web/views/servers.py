@@ -83,7 +83,8 @@ def index(req):
             edit_form = EditServerForm(req.POST, prefix="edit")
             form = RegisterServerForm()
             current_form = edit_form
-            zato_server = Server(req.POST[prefix + "server_id"])
+            zato_server = Server()
+            zato_server.id = req.POST[prefix + "server_id"]
             success_message = "Successfully saved the changes"
         else:
             prefix = ""
