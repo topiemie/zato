@@ -36,7 +36,7 @@ from validate import is_boolean
 
 # Zato
 from zato.common import ZatoException, ZATO_NONE, ZATO_OK
-from zato.common.odb.model import Cluster, HTTPSOAP, HTTPSOAPSecurity, SecurityDefinition, Service
+from zato.common.odb.model import Cluster, HTTPSOAP, HTTPSOAPSecurity, Service
 from zato.common.odb.query import http_soap_list
 from zato.common.util import security_def_type
 from zato.server.service.internal import _get_params, AdminService

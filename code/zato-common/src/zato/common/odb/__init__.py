@@ -39,14 +39,14 @@ engine_def = '{engine}://{user}:{password}@{host}/{db_name}'
 
 # Queries to use in pinging the databases.
 ping_queries = {
-    "access": "SELECT 1",
-    "db2": "SELECT current_date FROM sysibm.sysdummy1",
-    "firebird": "SELECT current_timestamp FROM rdb$database",
-    "informix": "SELECT 1 FROM systables WHERE tabid=1",
-    "mssql": "SELECT 1",
-    "mysql": "SELECT 1+1",
-    "oracle": "SELECT 1 FROM dual",
-    "postgresql": "SELECT 1",
+    'access': 'SELECT 1',
+    'db2': 'SELECT current_date FROM sysibm.sysdummy1',
+    'firebird': 'SELECT current_timestamp FROM rdb$database',
+    'informix': 'SELECT 1 FROM systables WHERE tabid=1',
+    'mssql': 'SELECT 1',
+    'mysql': 'SELECT 1+1',
+    'oracle': 'SELECT 1 FROM dual',
+    'postgresql': 'SELECT 1',
 }
 
 def create_pool(crypto_manager, engine_params):

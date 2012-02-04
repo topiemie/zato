@@ -96,14 +96,14 @@ class Quickstart(ZatoCommand):
 
             ping_service_name = 'zato.server.service.internal.Ping'
             ping_service = Service(None, ping_service_name, True, ping_service_name, True, cluster)
-            session.add(ping_service)
+            # session.add(ping_service)
             
             #
             # .. no security ..
             #
             ping_no_sec_channel = HTTPSOAP(None, 'zato:ping', True, True, 'channel', 
                                            'plain_http', '/zato/ping', None, None, None, service=ping_service, cluster=cluster)
-            session.add(ping_no_sec_channel)
+            # session.add(ping_no_sec_channel)
 
 
             #
@@ -129,16 +129,16 @@ class Quickstart(ZatoCommand):
                 password = passwords[base_name]
                 
                 sec_def = SecurityDefinition(None, security_def_type.basic_auth)
-                session.add(sec_def)
+                # session.add(sec_def)
                 
                 sec = HTTPBasicAuth(None, zato_name, True, zato_name, 'Zato', password, sec_def, cluster)
-                session.add(sec)
+                # session.add(sec)
                 
                 channel = HTTPSOAP(None, zato_name, True, True, 'channel', transport, url, None, soap_action, soap_version, service=ping_service, cluster=cluster)
-                session.add(channel)
+                # session.add(channel)
                 
                 channel_sec = HTTPSOAPSecurity(channel, sec_def)
-                session.add(channel_sec)
+                # session.add(channel_sec)
                 
                 for wss_type in wss_types:
                     base_name = 'ping.{0}.wss.{1}'.format(transport, wss_type)
@@ -147,27 +147,28 @@ class Quickstart(ZatoCommand):
                     password = passwords[base_name]
                     
                     sec_def = SecurityDefinition(None, security_def_type.wss_username_password)
-                    session.add(sec_def)
+                    # session.add(sec_def)
                     
                     sec = WSSDefinition(None, zato_name, True, zato_name, password, wss_type, True, True, 3600, 3600, sec_def, cluster)
-                    session.add(sec)
+                    # session.add(sec)
                     
                     channel = HTTPSOAP(None, zato_name, True, True, 'channel', transport, url, None, soap_action, soap_version, service=ping_service, cluster=cluster)
-                    session.add(channel)
+                    # session.add(channel)
                     
                     channel_sec = HTTPSOAPSecurity(channel, sec_def)
-                    session.add(channel_sec)
+                    # session.add(channel_sec)
                     
     def execute(self, args):
         try:
 
             engine = self._get_engine(args)
-            session = self._get_session(engine)
+            #session = self._get_session(engine)
             
-            elixir.session = session
+            #elixir.session = session()
             elixir.metadata.bind = engine
             elixir.options_defaults.update({
-                'shortnames': True
+                'shortnames': True,
+                'mapper_options':{'save_on_init': False}
             })
             
             elixir.setup_all()
@@ -186,7 +187,7 @@ class Quickstart(ZatoCommand):
             engine.execute(ping_queries[args.odb_type])
             print('Ping OK\n')
             
-            '''
+
             next_id = 11#self.get_next_id(session, Cluster, Cluster.name, 
                         #               'ZatoQuickstartCluster-%', Cluster.id.desc(),
                         #               '#')
@@ -240,12 +241,12 @@ class Quickstart(ZatoCommand):
 
             # Create the web admin now.
             
-            tech_account_name = 'zato-{random}'.format(random=uuid4().hex[:10])
+            tech_acc_name = 'zato-{random}'.format(random=uuid4().hex[:10])
             tech_account_password_clear = uuid4().hex
             
             os.mkdir(zato_admin_dir)
             create_zato_admin.CreateZatoAdmin(zato_admin_dir,
-                tech_account_name, tech_account_password_clear).execute(args)
+                tech_acc_name, tech_account_password_clear).execute(args)
 
             # .. copy the web admin's material over to its directory
             
@@ -278,6 +279,9 @@ class Quickstart(ZatoCommand):
             cluster.lb_host = 'localhost'
             cluster.lb_agent_port = 20151
             cluster.lb_port = 11223
+            cluster.update_auth_ctx = 'zzz'
+            cluster.is_active = True
+            cluster.is_internal = False
 
             #
             # Server
@@ -288,8 +292,8 @@ class Quickstart(ZatoCommand):
             server.odb_token = cs.odb_token
             server.last_join_status = 'ACCEPTED'
             server.last_join_mod_date = datetime.now()
-            server.last_join_mod_by = 'zato-quickstart/' + current_host())
-            session.add(server)
+            server.last_join_mod_by = 'zato-quickstart/' + current_host()
+            # session.add(server)
             
             #
             # SOAP Services
@@ -420,13 +424,15 @@ class Quickstart(ZatoCommand):
             #
             # TechnicalAccount
             #
-            '''
             
-            '''salt = uuid4().hex
+            salt = uuid4().hex
             password = tech_account_password(tech_account_password_clear, salt)
-            tech_account = TechnicalAccount(None, tech_account_name, True, 
-                password, salt, security_def_type.tech_account, cluster)
-            session.add(tech_account)
+            tech_acc = TechnicalAccount()
+            tech_acc.name = tech_acc_name
+            tech_acc.is_active = True
+            tech_acc.password = password
+            tech_acc.salt = salt
+            tech_acc.cluster = cluster
 
             #
             # HTTPSOAP + services
@@ -436,13 +442,25 @@ class Quickstart(ZatoCommand):
             
             for soap_action, service_name in soap_services.iteritems():
                 
-                service = Service(None, service_name, True, service_name, True, cluster)
-                session.add(service)
+                service = Service()
+                service.is_active = True
+                service.is_internal = True
+                service.name = service_name
+                service.impl_name = service_name
+                service.cluster = cluster
                 
-                zato_soap = HTTPSOAP(None, soap_action, True, True, 'channel', 
-                    'soap', '/zato/soap', None, soap_action, '1.1', service=service, cluster=cluster,
-                    security_id=tech_account.id)
-                session.add(zato_soap)
+                #elixir.session.add(service)
+                
+                zato_soap = HTTPSOAP()
+                zato_soap.name = soap_action
+                zato_soap.connection = 'channel'
+                zato_soap.transport = 'soap'
+                zato_soap.url_path = '/zato/soap'
+                zato_soap.soap_action = soap_action
+                zato_soap.soap_version = '1.1'
+                zato_soap.security = tech_acc
+                zato_soap.cluster = cluster
+                zato_soap.service = service
                 
                 zato_soap_channels.append(zato_soap)
                 
@@ -450,35 +468,32 @@ class Quickstart(ZatoCommand):
             # Security definition for all the other admin services uses a technical account.
             #
             #sec_def = SecurityDefinition(None, security_def_type.tech_account)
-            #session.add(sec_def)
+            ## session.add(sec_def)
             
             #
             # HTTPSOAPSecurity
             #
             #for soap_channel in zato_soap_channels:
             #    chan_url_sec = HTTPSOAPSecurity(soap_channel, sec_def)
-            #    session.add(chan_url_sec)
+            #    # session.add(chan_url_sec)
             
                 
             # Ping services
             #self.add_ping(session, cluster)
             
             # Commit all the stuff.
-            session.commit()
+            elixir.session.commit()
             
-            '''
 
             print('ODB objects created')
             print('')
 
             print('Quickstart OK. You can now start the newly created Zato components.\n')
             
-            '''
             print("""To start the server, type 'zato start {server_dir}'.
 To start the load-balancer's agent, type 'zato start {lb_dir}'.
 To start the ZatoAdmin web console, type 'zato start {zato_admin_dir}'.
             """.format(server_dir=server_dir, lb_dir=lb_dir, zato_admin_dir=zato_admin_dir))
-            '''
             
         except Exception, e:
             print("\nAn exception has been caught, quitting now!\n")

@@ -162,7 +162,7 @@ class CreateServer(ZatoCommand):
 
         self.dirs_prepared = True
 
-    def execute(self, args, server_pub_key=None):
+    def execute(self, args, session=None):
         
         # Service list 1)
         # We need to check if we're the first server to join the cluster. If we
@@ -218,17 +218,14 @@ class CreateServer(ZatoCommand):
         # We'll need to add the list of services to the ODB depending on just 
         # how many active servers there are in the cluster.
         
-        engine = self._get_engine(args)
-        session = self._get_session(engine)
-
-        cluster = session.query(Cluster).filter(Cluster.name==cluster_name).first()
+        cluster = Cluster.query.filter(Cluster.name==cluster_name).first()
         if not cluster:
             should_add = True # A new cluster so it can't have any services yet.
         else:
             # .Need to add the list if there aren't any servers yet.
-            should_add = not session.query(Server).\
+            should_add = not Server.query.\
                    filter(Server.cluster_id==cluster.id).\
-                   filter(Server.last_join_status==ZATO_JOIN_REQUEST_ACCEPTED+'a').\
+                   filter(Server.last_join_status==ZATO_JOIN_REQUEST_ACCEPTED).\
                    count()
         
         #if should_add

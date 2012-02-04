@@ -55,7 +55,7 @@ from springpython.context import ApplicationContext
 # Zato
 from zato.agent.load_balancer.client import LoadBalancerAgentClient
 from zato.common.broker_message import ZMQ_SOCKET
-from zato.common.log_message import RID_LENGTH
+from zato.common.log_message import NULL_RID, RID_LENGTH
 
 logger = logging.getLogger(__name__)
 
@@ -310,3 +310,11 @@ def get_crypto_manager(repo_location, app_context, config, load_keys=True):
         crypto_manager.load_keys()
         
     return crypto_manager
+
+
+def get_update_auth_ctx(addr, user, remote_addr, remote_user, pid, 
+                        tid, code_loc, cluster_id, cluster_name, server_id, 
+                        server_name, server_loc, rid=NULL_RID):
+    """ Creates a document containing all the interesting bits regarding how
+    modified the given Zato object.
+    """

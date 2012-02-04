@@ -24,6 +24,9 @@ import logging, logging.config, os
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy import create_engine
 
+# Elixir
+import elixir
+
 # Zato
 from zato.common.odb import engine_def
 from zato.common.util import TRACE1
@@ -115,7 +118,10 @@ DATABASES['default']['ENGINE'] = 'django.db.backends.' + django_sqlalchemy_engin
 SASession = scoped_session(sessionmaker())
 engine = create_engine(engine_def.format(engine=db_type, user=DATABASE_USER,
                 password=DATABASE_PASSWORD, host=DATABASE_HOST, db_name=DATABASE_NAME))
-SASession.configure(bind=engine)
+#SASession.configure(bind=engine)
+
+elixir.metadata.bind = engine
+elixir.setup_all()
 
 # Crypto
 ssl_key_file = os.path.join(config_dir, SSL_KEY_FILE)

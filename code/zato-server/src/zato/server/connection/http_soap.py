@@ -115,6 +115,8 @@ class Security(object):
     def handle(self, rid, url_data, request_data, body, headers):
         """ Calls other concrete security methods as appropriate.
         """
+        #sec_def, sec_def_type = url_data.sec_def, url_data.sec_def.type
+        
         sec_def, sec_def_type = url_data.sec_def, url_data.sec_def.type
         
         handler_name = '_handle_security_{0}'.format(sec_def_type.replace('-', '_'))
@@ -314,12 +316,12 @@ class RequestHandler(object):
                 headers = task.request_data.headers
                 
                 # No security at all for that URL.
-                if url_data.sec_def != ZATO_NONE:
-                    if url_data.sec_def.type in(security_def_type.tech_account, security_def_type.basic_auth):
-                        self.security.handle(rid, url_data, task.request_data, request, headers)
-                else:
-                    log_msg = '[{0}] No security for URL [{1}]'.format(rid, task.request_data.uri)
-                    logger.debug(log_msg)
+                #if url_data.sec_def != ZATO_NONE:
+                #    if url_data.sec_def.type in(security_def_type.tech_account, security_def_type.basic_auth):
+                self.security.handle(rid, url_data, task.request_data, request, headers)
+                #else:
+                #    log_msg = '[{0}] No security for URL [{1}]'.format(rid, task.request_data.uri)
+                #    logger.debug(log_msg)
                 
                 handler = getattr(self, '{0}_handler'.format(transport))
                 return handler.handle(rid, task, request, headers, transport, thread_ctx)

@@ -23,17 +23,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from sqlalchemy.sql.expression import case, literal_column
 
 # Zato
-from zato.common.odb.model import(
-    #ChannelAMQP, ChannelWMQ, ChannelZMQ, 
-    Cluster, 
-    #ConnDefAMQP, ConnDefWMQ, CronStyleJob, 
-    #HTTPBasicAuth, 
-    #HTTPSOAP, 
-    #IntervalBasedJob, 
-    #Job, OutgoingAMQP,  OutgoingFTP, OutgoingS3, OutgoingWMQ, OutgoingZMQ, 
-    #Service, 
-    #TechnicalAccount, WSSDefinition
-    )
+from zato.common.odb.model import ChannelAMQP, ChannelWMQ, ChannelZMQ, Cluster, \
+    ConnDefAMQP, ConnDefWMQ, CronStyleJob, BasicAuth, HTTPSOAP, IntervalBasedJob, \
+    Job, OutgoingAMQP,  OutgoingFTP, OutgoingS3, OutgoingWMQ, OutgoingZMQ, Service, \
+    TechnicalAccount, WSSDefinition
 
 # ##############################################################################
 
@@ -70,9 +63,9 @@ def job_list(session, cluster_id):
 def basic_auth_list(session, cluster_id):
     """ All the HTTP Basic Auth definitions.
     """
-    return session.query(HTTPBasicAuth).\
+    return session.query(BasicAuth).\
         filter(Cluster.id==cluster_id).\
-        order_by('http_basic_auth_def.name').\
+        order_by('basic_auth.name').\
         all()
 
 def tech_acc_list(session, cluster_id):
@@ -284,6 +277,7 @@ def channel_zmq_list(session, cluster_id):
 
 def _http_soap(session, cluster_id):
 
+    '''
     tech_acc_case_id = (SecurityDefinition.security_def_type=='tech_acc', 
                      literal_column('(select tech_account.id from tech_account where tech_account.security_def_id = security_def.id)'))
     tech_acc_case_name = (SecurityDefinition.security_def_type=='tech_acc', 
@@ -298,6 +292,7 @@ def _http_soap(session, cluster_id):
                 literal_column('(select http_basic_auth_def.id from http_basic_auth_def where http_basic_auth_def.security_def_id = security_def.id)'))
     basic_auth_case_name = (SecurityDefinition.security_def_type=='basic_auth', 
                 literal_column('(select http_basic_auth_def.name from http_basic_auth_def where http_basic_auth_def.security_def_id = security_def.id)'))
+                '''
     
     return session.query(HTTPSOAP.id, HTTPSOAP.name, HTTPSOAP.is_active, 
             HTTPSOAP.is_internal, HTTPSOAP.transport, HTTPSOAP.url_path, 
@@ -305,13 +300,11 @@ def _http_soap(session, cluster_id):
             Service.id.label('service_id'),
             Service.name.label('service_name'),
             Service.impl_name,
-            SecurityDefinition.id.label('security_def_id'),
-            SecurityDefinition.security_def_type,
-            case([tech_acc_case_id, wss_case_id, basic_auth_case_id]).label('security_id'),
-            case([tech_acc_case_name, wss_case_name, basic_auth_case_name]).label('security_name'),
+            #SecurityDefinition.id.label('security_def_id'),
+            #SecurityDefinition.security_def_type,
+            #case([tech_acc_case_id, wss_case_id, basic_auth_case_id]).label('security_id'),
+            #case([tech_acc_case_name, wss_case_name, basic_auth_case_name]).label('security_name'),
             ).\
-        outerjoin(HTTPSOAPSecurity, HTTPSOAPSecurity.http_soap_id==HTTPSOAP.id).\
-        outerjoin(SecurityDefinition, HTTPSOAPSecurity.security_def_id==SecurityDefinition.id).\
         filter(Cluster.id==HTTPSOAP.cluster_id).\
         filter(Service.id==HTTPSOAP.service_id).\
         filter(Cluster.id==cluster_id).\

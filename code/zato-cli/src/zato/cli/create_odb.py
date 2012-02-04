@@ -32,7 +32,7 @@ from sqlalchemy.orm import sessionmaker
 
 # Zato
 from zato.cli import ZatoCommand, common_odb_opts
-from zato.common.odb.model import Base#, ZatoInstallState
+#from zato.common.odb.model import Base#, ZatoInstallState
 
 ODB_VERSION = "1.0"
 

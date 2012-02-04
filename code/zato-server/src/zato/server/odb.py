@@ -27,23 +27,21 @@ from traceback import format_exc
 from sqlalchemy.orm import joinedload, sessionmaker, scoped_session
 from sqlalchemy.exc import IntegrityError
 
+# Elixir
+import elixir
+
 # Bunch
 from bunch import Bunch
 
 # Zato
 from zato.common import ZATO_NONE
-from zato.common.odb.model import(
-    #HTTPSOAP, Cluster, DeployedService, 
-                                  #HTTPBasicAuth, 
-                                  Server,
-     #                             Service, 
-                                  #TechnicalAccount, WSSDefinition
-                                  )
-from zato.common.odb.query import(channel_amqp, channel_amqp_list, channel_jms_wmq,
-    channel_jms_wmq_list, channel_zmq, channel_zmq_list, def_amqp, def_amqp_list, 
-    def_jms_wmq, def_jms_wmq_list, basic_auth_list,  http_soap_list, http_soap_security_list, 
-    internal_channel_list, job_list,  out_amqp, out_amqp_list, out_ftp, out_ftp_list, out_jms_wmq, 
-    out_jms_wmq_list, out_s3, out_s3_list, out_zmq, out_zmq_list, tech_acc_list, wss_list)
+from zato.common.odb.model import HTTPSOAP, Cluster, DeployedService, BasicAuth, \
+    Server, Service, TechnicalAccount, WSSDefinition
+from zato.common.odb.query import channel_amqp, channel_amqp_list, channel_jms_wmq, \
+    channel_jms_wmq_list, channel_zmq, channel_zmq_list, def_amqp, def_amqp_list, \
+    def_jms_wmq, def_jms_wmq_list, basic_auth_list,  http_soap_list, http_soap_security_list, \
+    internal_channel_list, job_list,  out_amqp, out_amqp_list, out_ftp, out_ftp_list, out_jms_wmq, \
+    out_jms_wmq_list, out_s3, out_s3_list, out_zmq, out_zmq_list, tech_acc_list, wss_list
 from zato.server.pool.sql import ODBConnectionPool
 
 logger = logging.getLogger(__name__)
@@ -64,8 +62,8 @@ class ODBManager(object):
         self.server = server
         self.cluster = cluster
 
-    def session(self):
-        return self._Session()
+    #def session(self):
+    #    return self._Session()
 
     def close(self):
         self._session.close()
@@ -91,12 +89,17 @@ class ODBManager(object):
 
         self.pool.ping({'pool_name': ZATO_ODB_POOL_NAME})
         engine = self.pool.get(ZATO_ODB_POOL_NAME)
+        
+        elixir.metadata.bind = engine
+        elixir.setup_all()
 
-        self._Session = scoped_session(sessionmaker(bind=engine))
-        self._session = self._Session()
+        #self._Session = scoped_session(sessionmaker(bind=engine))
+        #self._session = self._Session()
+        
+        self._session = elixir.session
 
         try:
-            self.server = self._session.query(Server).\
+            self.server = Server.query.\
                    filter(Server.odb_token == self.odb_data['token']).\
                    one()
             self.cluster = self.server.cluster
@@ -114,7 +117,7 @@ class ODBManager(object):
         # What DB class to fetch depending on the string value of the security type.
         sec_type_db_class = {
             'tech_acc': TechnicalAccount,
-            'basic_auth': HTTPBasicAuth,
+            'basic_auth': BasicAuth,
             'wss_username_password': WSSDefinition
             }
 
@@ -126,6 +129,7 @@ class ODBManager(object):
             result[item.url_path] = Bunch()
             result[item.url_path].transport = item.transport
             
+            '''
             if item.security_def_type:
                 result[item.url_path].sec_def = Bunch()
                 result[item.url_path].sec_def.type = item.security_def_type
@@ -155,6 +159,7 @@ class ODBManager(object):
                     result[item.url_path].sec_def.nonce_freshness = sec_def.nonce_freshness
             else:
                 result[item.url_path].sec_def = ZATO_NONE
+                '''
 
         return result
 
@@ -162,7 +167,12 @@ class ODBManager(object):
         """ Adds information about the server's service into the ODB.
         """
         try:
-            service = Service(None, name, True, impl_name, is_internal, self.cluster)
+            service = Service()
+            service.name = name
+            service.impl_name = impl_name
+            service.is_active = True
+            service.is_internal = is_internal
+            service.cluster = self.cluster
             self._session.add(service)
             try:
                 self._session.commit()
@@ -187,8 +197,12 @@ class ODBManager(object):
         """ Adds information about the server's deployed service into the ODB.
         """
         try:
-            service = DeployedService(deployment_time, details, self.server, service)
-            self._session.add(service)
+            deployed_service = DeployedService()
+            deployed_service.deployment_time = deployment_time
+            deployed_service.details = details
+            deployed_service.server = self.server
+            deployed_service.service = service
+            self._session.add(deployed_service)
             try:
                 self._session.commit()
             except IntegrityError, e:

@@ -24,14 +24,11 @@ from ftplib import FTP_PORT
 from json import dumps
 
 # SQLAlchemy
-from sqlalchemy import Table, Column, Integer, String, DateTime, MetaData, \
-     ForeignKey, Sequence, Boolean, LargeBinary, UniqueConstraint, Enum, \
-     SmallInteger
-from sqlalchemy.ext.declarative import ConcreteBase, declarative_base
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy import MetaData, Sequence, UniqueConstraint, Enum
 
 # Elixir
-from elixir import Boolean, Entity, DateTime, Field, Integer, ManyToOne, OneToMany, \
+from elixir import Boolean, Entity, EntityBase, EntityMeta, DateTime, Field, \
+     Integer, LargeBinary, ManyToOne, OneToMany, OneToOne, SmallInteger, \
      Unicode, using_options, using_table_options
 from elixir.ext.versioned import acts_as_versioned
 
@@ -40,7 +37,23 @@ from zato.common.util import make_repr, object_attrs
 from zato.common.odb import AMQP_DEFAULT_PRIORITY, S3_DEFAULT_KEY_SYNC_TIMEOUT, \
      S3_DEFAULT_SEPARATOR, WMQ_DEFAULT_PRIORITY
 
-Base = declarative_base()
+class _ZatoBase(EntityBase):
+    """ A base class for all Zato entities.
+    """
+    __metaclass__ = EntityMeta
+    
+    # Unfortunately, we can't use acts_as_versioned() in the base class.
+    
+    # Each entity stores information regarding who exactly made its last update.
+    update_auth_ctx = Field(Unicode(6000), nullable=False, deferred=True, server_default='zzz')
+
+    # Most entities can be de-/activated, meaning they will no longer be
+    # available for use even though their definition will still be stored
+    # in the ODB.
+    is_active = Field(Boolean(), nullable=False, server_default='1')
+    
+    # Pretty much any entity can be one of Zato's internal built-ins.
+    is_internal = Field(Boolean(), nullable=False, server_default='1')
 
 ################################################################################
 
@@ -80,7 +93,7 @@ class ZatoInstallState(Base):
         self.source_user = source_user
 '''
 
-class Cluster(Entity):
+class Cluster(_ZatoBase):
     """ Represents a Zato cluster.
     """
     acts_as_versioned()
@@ -93,40 +106,43 @@ class Cluster(Entity):
     odb_port = Field(Integer(), nullable=False)
     odb_user = Field(Unicode(200), nullable=False)
     odb_db_name = Field(Unicode(200), nullable=False)
-    odb_schema = Field(Unicode(200), nullable=False)
+    odb_schema = Field(Unicode(200), nullable=True)
     broker_host = Field(Unicode(200), nullable=False)
     broker_start_port = Field(Integer(), nullable=False)
     broker_token = Field(Unicode(32), nullable=False)
     lb_host = Field(Unicode(200), nullable=False)
     lb_agent_port = Field(Integer(), nullable=False)
     lb_port = Field(Integer(), nullable=False)
-    update_auth_ctx = Field(Unicode(2000), nullable=False)
     
-    server_list = OneToMany('Server')
     http_soap_list = OneToMany('HTTPSOAP')
+    server_list = OneToMany('Server')
+    service_list = OneToMany('Service')
+    job_list = OneToMany('Job')
+    conn_def_amqp_list = OneToMany('ConnDefAMQP')
+    conn_def_wmq_list = OneToMany('ConnDefWMQ')
+    out_ftp_list = OneToMany('OutgoingFTP')
+    out_zmq_list = OneToMany('OutgoingZMQ')
+    channel_zmq_list = OneToMany('ChannelZMQ')
 
-class Server(Entity):
+class Server(_ZatoBase):
     """ Represents a Zato server.
     """
     acts_as_versioned()
     using_options(tablename='server')
     
-    update_auth_ctx = Field(Unicode(2000), nullable=False)
     name = Field(Unicode(200), unique=True, nullable=False)
-    
     last_join_status = Field(Unicode(40), nullable=False)
     last_join_mod_date = Field(DateTime(timezone=True), nullable=False)
-    last_join_mod_by = Column(String(200), nullable=False)
+    last_join_mod_by = Field(Unicode(200), nullable=False)
     
     odb_token = Field(Unicode(32), nullable=False)
-    update_auth_ctx = Field(Unicode(2000), nullable=False)
     
+    deployed_service_list = OneToMany('DeployedService')
     cluster = ManyToOne('Cluster', required=True)
-
 
 ################################################################################
 
-class HTTPSOAPSecurity(Entity):
+class HTTPSOAPSecurity(_ZatoBase):
     """ A base class for any concrete HTTP-related authentication methods.
     """
     acts_as_versioned()
@@ -134,7 +150,6 @@ class HTTPSOAPSecurity(Entity):
     using_table_options(UniqueConstraint('name', 'cluster_id'))
     
     name = Field(Unicode(200), nullable=False)
-    is_active = Field(Boolean(), nullable=False)
     
     http_soap_list = OneToMany('HTTPSOAP')
     cluster = ManyToOne('Cluster', required=True)
@@ -143,6 +158,7 @@ class BasicAuth(HTTPSOAPSecurity):
     acts_as_versioned()
     using_options(inheritance='multi', tablename='basic_auth')
     
+    update_auth_ctx = Field(Unicode(2000), nullable=False)
     username = Field(Unicode(200), nullable=False)
     domain = Field(Unicode(200), nullable=False)
     password = Field(Unicode(200), nullable=False)
@@ -153,6 +169,7 @@ class WSSDefinition(HTTPSOAPSecurity):
     acts_as_versioned()
     using_options(inheritance='multi', tablename='wss_def')
     
+    update_auth_ctx = Field(Unicode(2000), nullable=False)
     username = Field(Unicode(200), nullable=False)
     domain = Field(Unicode(200), nullable=False)
     password = Field(Unicode(200), nullable=False)
@@ -162,13 +179,20 @@ class WSSDefinition(HTTPSOAPSecurity):
     expiry_limit = Field(Integer(), nullable=False)
     nonce_freshness = Field(Integer(), nullable=True)
     
-    # To make autocompletion work.
+    # To make autocompletion work
     password_type_raw = None # Not used by the DB
+    
+class TechnicalAccount(HTTPSOAPSecurity):
+    acts_as_versioned()
+    using_options(inheritance='multi', tablename='tech_acc')
+    
+    password = Field(Unicode(64), nullable=False)
+    salt = Field(Unicode(32), nullable=False)
     
 ################################################################################
 
 
-class HTTPSOAP(Entity):
+class HTTPSOAP(_ZatoBase):
     """ An incoming or outgoing HTTP/SOAP connection.
     """
     acts_as_versioned()
@@ -177,604 +201,297 @@ class HTTPSOAP(Entity):
                          UniqueConstraint('url_path', 'connection', 'soap_action', 'cluster_id'))
                          
     name = Field(Unicode(200), nullable=False)
-    is_active = Field(Boolean(), nullable=False)
-    is_internal = Field(Boolean(), nullable=False)
-    
     connection = Field(Unicode(20), nullable=False) # Channel or outgoing
     transport = Field(Unicode(20), nullable=False) # HTTP or SOAP
      
     url_path = Field(Unicode(200), nullable=False)
-    method = Field(Unicode(200), nullable=False)
+    method = Field(Unicode(200), nullable=True)
      
     soap_action = Field(Unicode(200), nullable=True)
     soap_version = Field(Unicode(20), nullable=True)
     
     security = ManyToOne('HTTPSOAPSecurity', required=True)
     cluster = ManyToOne('Cluster', required=True)
+    service = ManyToOne('Service', required=True)
     
-    # To make autocompletion work.
+    # To make autocompletion work
     service_name = None # Not used by the DB
     security_id = None # Not used by the DB
     security_name = None # Not used by the DB
 
 
-'''
-    
-class TechnicalAccount(Base):
-    """ Stores information about technical accounts, used for instance by Zato
-    itself for securing access to its API.
-    """
-    __tablename__ = 'tech_account'
-    __table_args__ = (UniqueConstraint('name'), {})
-    __mapper_args__ = {'polymorphic_identity':'tech_acc', 'concrete':True}
-
-    id = Column(Integer,  Sequence('tech_account_id_seq'), primary_key=True)
-    name = Column(String(45), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-    password = Column(String(64), nullable=False)
-    salt = Column(String(32), nullable=False)
-    
-    sec_type = Column(String(45), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('tech_accounts', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, password=None, 
-                 salt=None, sec_type=None, cluster=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.password = password
-        self.salt = salt
-        self.sec_type = sec_type
-        self.cluster = cluster
-
-    def to_json(self):
-        return to_json(self)
-
 ################################################################################
-'''
 
-'''
-class SQLConnectionPool(Base):
+class SQLConnectionPool(_ZatoBase):
     """ An SQL connection pool.
     """
-    __tablename__ = 'sql_pool'
-    __table_args__ = (UniqueConstraint('cluster_id', 'name'), {})
+    acts_as_versioned()
+    using_options(tablename='sql_pool')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
 
-    id = Column(Integer,  Sequence('sql_pool_id_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    user = Column(String(200), nullable=False)
-    db_name = Column(String(200), nullable=False)
-    engine = Column(String(200), nullable=False)
-    extra = Column(LargeBinary(200000), nullable=True)
-    host = Column(String(200), nullable=False)
-    port = Column(Integer(), nullable=False)
-    pool_size = Column(Integer(), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('sql_pools', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, db_name=None, user=None, engine=None,
-                 extra=None, host=None, port=None, pool_size=None, cluster=None):
-        self.id = id
-        self.name = name
-        self.db_name = db_name
-        self.user = user
-        self.engine = engine
-        self.extra = extra
-        self.host = host
-        self.port = port
-        self.pool_size = pool_size
-        self.cluster = cluster
-
-    def __repr__(self):
-        return make_repr(self)
-
-class SQLConnectionPoolPassword(Base):
-    """ An SQL connection pool's passwords.
-    """
-    __tablename__ = 'sql_pool_passwd'
-
-    id = Column(Integer,  Sequence('sql_pool_id_seq'), primary_key=True)
-    password = Column(LargeBinary(200000), server_default='not-set-yet', nullable=False)
-    server_key_hash = Column(LargeBinary(200000), server_default='not-set-yet', nullable=False)
-
-    server_id = Column(Integer, ForeignKey('server.id', ondelete='CASCADE'), nullable=False)
-    server = relationship(Server, backref=backref('sql_pool_passwords', order_by=id, cascade='all, delete, delete-orphan'))
-
-    sql_pool_id = Column(Integer, ForeignKey('sql_pool.id', ondelete='CASCADE'), nullable=False)
-    sql_pool = relationship(SQLConnectionPool, backref=backref('sql_pool_passwords', order_by=id, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, password=None, server_key_hash=None, server_id=None,
-                 server=None, sql_pool_id=None, sql_pool=None):
-        self.id = id
-        self.password = password
-        self.server_key_hash = server_key_hash
-        self.server_id = server_id
-        self.server = server
-        self.sql_pool_id = sql_pool_id
-        self.sql_pool = sql_pool
-
-    def __repr__(self):
-        return make_repr(self)
-
+    name = Field(Unicode(200), nullable=False)
+    engine = Field(Unicode(200), nullable=False)
+    host = Field(Unicode(200), nullable=False)
+    port = Field(Integer(), nullable=False)
+    db_name = Field(Unicode(200), nullable=False)
+    user = Field(Unicode(200), nullable=False)
+    password = Field(Unicode(200), nullable=False)
+    pool_size = Field(Integer(), nullable=False)
+    extra = Field(LargeBinary(200000), nullable=True, deferred=True)
+    
+    cluster = ManyToOne('Cluster', required=True)
 
 ################################################################################
-'''
 
-
-
-
-'''
-class Service(Base):
+class Service(_ZatoBase):
     """ A set of basic informations about a service available in a given cluster.
     """
-    __tablename__ = 'service'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id'), {})
+    acts_as_versioned()
+    using_options(tablename='service')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
+    
+    name = Field(Unicode(2000), nullable=False)
+    impl_name = Field(Unicode(2000), nullable=False)
+    
+    cluster = ManyToOne('Cluster', required=True)
+    deployed_list = OneToMany('DeployedService')
+    job_list = OneToMany('Job')
+    channel_amqp_list = OneToMany('ChannelAMQP')
+    channel_wmq_list = OneToMany('ChannelWMQ')
+    channel_zmq_list = OneToMany('ChannelZMQ')
 
-    id = Column(Integer,  Sequence('service_id_seq'), primary_key=True)
-    name = Column(String(2000), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-    impl_name = Column(String(2000), nullable=False)
-    is_internal = Column(Boolean(), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('services', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, impl_name=None, 
-                 is_internal=None, cluster=None, usage_count=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.impl_name = impl_name
-        self.is_internal = is_internal
-        self.cluster = cluster
-        self.usage_count = usage_count # Not used by the database
-
-class DeployedService(Base):
-    """ A service living on a given server.
+class DeployedService(_ZatoBase):
+    """ A service deployed to a server.
     """
-    __tablename__ = 'deployed_service'
-    __table_args__ = (UniqueConstraint('server_id', 'service_id'), {})
+    acts_as_versioned()
+    using_options(tablename='deployed_service')
+    deployment_time = Field(DateTime(timezone=True), nullable=False)
+    details = Field(Unicode(4000), nullable=False)
+    
+    server = ManyToOne('Server', required=True)
+    service = ManyToOne('Service', required=True)
 
-    deployment_time = Column(DateTime(), nullable=False)
-    details = Column(String(2000), nullable=False)
-
-    server_id = Column(Integer, ForeignKey('server.id', ondelete='CASCADE'), nullable=False, primary_key=True)
-    server = relationship(Server, backref=backref('deployed_services', order_by=deployment_time, cascade='all, delete, delete-orphan'))
-
-    service_id = Column(Integer, ForeignKey('service.id', ondelete='CASCADE'), nullable=False, primary_key=True)
-    service = relationship(Service, backref=backref('deployment_data', order_by=deployment_time, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, deployment_time, details, server, service):
-        self.deployment_time = deployment_time
-        self.details = details
-        self.server = server
-        self.service = service
-
-################################################################################
-
-class Job(Base):
+class Job(_ZatoBase):
     """ A scheduler's job. Stores all the information needed to execute a job
-    if it's a one-time job, otherwise the information is kept in related tables.
+    if it's a one-time job, otherwise the information is kept in other tables.
     """
-    __tablename__ = 'job'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id'), {})
+    acts_as_versioned()
+    using_options(inheritance='multi', tablename='job')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    job_type = Field(Enum('one_time', 'interval_based', 'cron_style', name='job_type'))
+    start_date = Field(DateTime(timezone=True), nullable=False)
+    extra = Field(LargeBinary(400000), nullable=True, deferred=True)
 
-    id = Column(Integer,  Sequence('job_id_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-    job_type = Column(Enum('one_time', 'interval_based', 'cron_style',
-                           name='job_type'), nullable=False)
-    start_date = Column(DateTime(), nullable=False)
-    extra = Column(LargeBinary(400000), nullable=True)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('jobs', order_by=name, cascade='all, delete, delete-orphan'))
-
-    service_id = Column(Integer, ForeignKey('service.id', ondelete='CASCADE'), nullable=False)
-    service = relationship(Service, backref=backref('jobs', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, job_type=None,
-                 start_date=None, extra=None, cluster=None, cluster_id=None,
-                 service=None, service_id=None, service_name=None, interval_based=None,
-                 cron_style=None, definition_text=None, job_type_friendly=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.job_type = job_type
-        self.start_date = start_date
-        self.extra = extra
-        self.cluster = cluster
-        self.cluster_id = cluster_id
-        self.service = service
-        self.service_id = service_id
-        self.service_name = service_name # Not used by the database
-        self.interval_based = interval_based
-        self.cron_style = cron_style
-        self.definition_text = definition_text # Not used by the database
-        self.job_type_friendly = job_type_friendly # Not used by the database
-
-class IntervalBasedJob(Base):
+    cluster = ManyToOne('Cluster', required=True)
+    service = ManyToOne('Service', required=True)
+    
+    # To make autocompletion work
+    service_name = None # Not used by the database
+    definition_text = None # Not used by the database
+    job_type_friendly = None # Not used by the database
+    
+class IntervalBasedJob(Job):
+    """ An interval-based job.
+    """
+    acts_as_versioned()
+    using_options(inheritance='multi', tablename='job_interval_based')
+    
+    update_auth_ctx = Field(Unicode(2000), nullable=False)
+    weeks = Field(Integer(), nullable=True)
+    days = Field(Integer(), nullable=True)
+    hours = Field(Integer(), nullable=True)
+    minutes = Field(Integer(), nullable=True)
+    seconds = Field(Integer(), nullable=True)
+    repeats = Field(Integer(), nullable=True)
+    
+    # To make autocompletion work
+    definition_text = None # Not used by the database
+    
+class CronStyleJob(Job):
     """ A Cron-style scheduler's job.
     """
-    __tablename__ = 'job_interval_based'
-    __table_args__ = (UniqueConstraint('job_id'), {})
-
-    id = Column(Integer,  Sequence('job_intrvl_seq'), primary_key=True)
-    job_id = Column(Integer, nullable=False)
-
-    weeks = Column(Integer, nullable=True)
-    days = Column(Integer, nullable=True)
-    hours = Column(Integer, nullable=True)
-    minutes = Column(Integer, nullable=True)
-    seconds = Column(Integer, nullable=True)
-    repeats = Column(Integer, nullable=True)
-
-    job_id = Column(Integer, ForeignKey('job.id', ondelete='CASCADE'), nullable=False)
-    job = relationship(Job, backref=backref('interval_based', uselist=False, cascade='all, delete, delete-orphan', single_parent=True))
-
-    def __init__(self, id=None, job=None, weeks=None, days=None, hours=None,
-                 minutes=None, seconds=None, repeats=None, definition_text=None):
-        self.id = id
-        self.job = job
-        self.weeks = weeks
-        self.days = days
-        self.hours = hours
-        self.minutes = minutes
-        self.seconds = seconds
-        self.repeats = repeats
-        self.definition_text = definition_text # Not used by the database
-
-class CronStyleJob(Base):
-    """ A Cron-style scheduler's job.
-    """
-    __tablename__ = 'job_cron_style'
-    __table_args__ = (UniqueConstraint('job_id'), {})
-
-    id = Column(Integer,  Sequence('job_cron_seq'), primary_key=True)
-    cron_definition = Column(String(4000), nullable=False)
-
-    job_id = Column(Integer, ForeignKey('job.id', ondelete='CASCADE'), nullable=False)
-    job = relationship(Job, backref=backref('cron_style', uselist=False, cascade='all, delete, delete-orphan', single_parent=True))
-
-    def __init__(self, id=None, job=None, cron_definition=None):
-        self.id = id
-        self.job = job
-        self.cron_definition = cron_definition
+    acts_as_versioned()
+    using_options(inheritance='multi', tablename='job_cron_style')
+    
+    update_auth_ctx = Field(Unicode(2000), nullable=False)
+    cron_definition = Field(Unicode(4000), nullable=False)
 
 ################################################################################
 
-class ConnDefAMQP(Base):
+class ConnDefAMQP(_ZatoBase):
     """ An AMQP connection definition.
     """
-    __tablename__ = 'conn_def_amqp'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id', 'def_type'), {})
+    acts_as_versioned()
+    using_options(tablename='conn_def_amqp')
+    using_table_options(UniqueConstraint('name', 'cluster_id', 'def_type'))
 
-    id = Column(Integer,  Sequence('conn_def_amqp_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    def_type = Column(String(10), nullable=False)
+    name = Field(Unicode(200), nullable=False)
+    def_type = Field(Unicode(10), nullable=False)
 
-    host = Column(String(200), nullable=False)
-    port = Column(Integer(), nullable=False)
-    vhost = Column(String(200), nullable=False)
-    username = Column(String(200), nullable=False)
-    password = Column(String(200), nullable=False)
-    frame_max = Column(Integer(), nullable=False)
-    heartbeat = Column(Integer(), nullable=False)
+    host = Field(Unicode(200), nullable=False)
+    port = Field(Integer(), nullable=False)
+    vhost = Field(Unicode(200), nullable=False)
+    username = Field(Unicode(200), nullable=False)
+    password = Field(Unicode(200), nullable=False)
+    frame_max = Field(Integer(), nullable=False)
+    heartbeat = Field(Integer(), nullable=False)
+    
+    cluster = ManyToOne('Cluster', required=True)
+    out_list = OneToMany('OutgoingAMQP')
 
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('amqp_conn_defs', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, def_type=None, host=None, port=None,
-                 vhost=None,  username=None,  password=None, frame_max=None,
-                 heartbeat=None, cluster_id=None):
-        self.id = id
-        self.name = name
-        self.def_type = def_type
-        self.host = host
-        self.port = port
-        self.vhost = vhost
-        self.username = username
-        self.password = password
-        self.frame_max = frame_max
-        self.heartbeat = heartbeat
-        self.cluster_id = cluster_id
-
-class ConnDefWMQ(Base):
+class ConnDefWMQ(_ZatoBase):
     """ A WebSphere MQ connection definition.
     """
-    __tablename__ = 'conn_def_wmq'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id'), {})
+    acts_as_versioned()
+    using_options(tablename='conn_def_wmq')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    
+    host = Field(Unicode(200), nullable=False)
+    port = Field(Integer(), nullable=False)
+    
+    queue_manager = Field(Unicode(200), nullable=False)
+    channel = Field(Unicode(200), nullable=False)
+    cache_open_send_queues = Field(Boolean(), nullable=False)
+    cache_open_receive_queues = Field(Boolean(), nullable=False)
+    use_shared_connections = Field(Boolean(), nullable=False)
+    dynamic_queue_template = Field(Unicode(200), nullable=False, server_default='SYSTEM.DEFAULT.MODEL.QUEUE') # We're not actually using it yet
+    ssl = Field(Boolean(), nullable=False)
+    ssl_cipher_spec = Field(Unicode(200), nullable=False)
+    ssl_key_repository = Field(Unicode(200), nullable=False)
+    needs_mcd = Field(Boolean(), nullable=False)
+    max_chars_printed = Field(Integer(), nullable=False)
+    
+    cluster = ManyToOne('Cluster', required=True)
+    out_list = OneToMany('OutgoingWMQ')
 
-    id = Column(Integer,  Sequence('conn_def_wmq_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-
-    host = Column(String(200), nullable=False)
-    port = Column(Integer, nullable=False)
-    queue_manager = Column(String(200), nullable=False)
-    channel = Column(String(200), nullable=False)
-    cache_open_send_queues = Column(Boolean(), nullable=False)
-    cache_open_receive_queues = Column(Boolean(), nullable=False)
-    use_shared_connections = Column(Boolean(), nullable=False)
-    dynamic_queue_template = Column(String(200), nullable=False, server_default='SYSTEM.DEFAULT.MODEL.QUEUE') # We're not actually using it yet
-    ssl = Column(Boolean(), nullable=False)
-    ssl_cipher_spec = Column(String(200))
-    ssl_key_repository = Column(String(200))
-    needs_mcd = Column(Boolean(), nullable=False)
-    max_chars_printed = Column(Integer, nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('wmq_conn_defs', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, host=None, port=None,
-                 queue_manager=None, channel=None, cache_open_send_queues=None,
-                 cache_open_receive_queues=None,  use_shared_connections=None, ssl=None,
-                 ssl_cipher_spec=None, ssl_key_repository=None, needs_mcd=None,
-                 max_chars_printed=None, cluster_id=None):
-        self.id = id
-        self.name = name
-        self.host = host
-        self.queue_manager = queue_manager
-        self.channel = channel
-        self.port = port
-        self.cache_open_receive_queues = cache_open_receive_queues
-        self.cache_open_send_queues = cache_open_send_queues
-        self.use_shared_connections = use_shared_connections
-        self.ssl = ssl
-        self.ssl_cipher_spec = ssl_cipher_spec
-        self.ssl_key_repository = ssl_key_repository
-        self.needs_mcd = needs_mcd
-        self.max_chars_printed = max_chars_printed
-        self.cluster_id = cluster_id
-
-################################################################################
-
-class OutgoingAMQP(Base):
+class OutgoingAMQP(_ZatoBase):
     """ An outgoing AMQP connection.
     """
-    __tablename__ = 'out_amqp'
-    __table_args__ = (UniqueConstraint('name', 'def_id'), {})
+    acts_as_versioned()
+    using_options(tablename='out_amqp')
+    using_table_options(UniqueConstraint('name', 'def_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    
+    delivery_mode = Field(SmallInteger(), nullable=False)
+    priority = Field(SmallInteger(), server_default=str(AMQP_DEFAULT_PRIORITY), nullable=False)
+    
+    content_type = Field(Unicode(200), nullable=True)
+    content_encoding = Field(Unicode(200), nullable=True)
+    expiration = Field(Unicode(20), nullable=True)
+    user_id = Field(Unicode(200), nullable=True)
+    app_id = Field(Unicode(200), nullable=True)
+    
+    def_ = ManyToOne('ConnDefAMQP', required=True, colname='def_id')
 
-    id = Column(Integer,  Sequence('out_amqp_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-
-    delivery_mode = Column(SmallInteger(), nullable=False)
-    priority = Column(SmallInteger(), server_default=str(AMQP_DEFAULT_PRIORITY), nullable=False)
-
-    content_type = Column(String(200), nullable=True)
-    content_encoding = Column(String(200), nullable=True)
-    expiration = Column(String(20), nullable=True)
-    user_id = Column(String(200), nullable=True)
-    app_id = Column(String(200), nullable=True)
-
-    def_id = Column(Integer, ForeignKey('conn_def_amqp.id', ondelete='CASCADE'), nullable=False)
-    def_ = relationship(ConnDefAMQP, backref=backref('out_conns_amqp', cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, delivery_mode=None,
-                 priority=None, content_type=None, content_encoding=None,
-                 expiration=None, user_id=None, app_id=None, def_id=None,
-                 delivery_mode_text=None, def_name=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.delivery_mode = delivery_mode
-        self.priority = priority
-        self.content_type = content_type
-        self.content_encoding = content_encoding
-        self.expiration = expiration
-        self.user_id = user_id
-        self.app_id = app_id
-        self.def_id = def_id
-        self.delivery_mode_text = delivery_mode_text # Not used by the DB
-        self.def_name = def_name # Not used by the DB
-        
-class OutgoingFTP(Base):
+class OutgoingFTP(_ZatoBase):
     """ An outgoing FTP connection.
     """
-    __tablename__ = 'out_ftp'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id'), {})
-
-    id = Column(Integer,  Sequence('out_ftp_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-
-    host = Column(String(200), nullable=False)
-    user = Column(String(200), nullable=True)
-    password = Column(String(200), nullable=True)
-    acct = Column(String(200), nullable=True)
-    timeout = Column(Integer, nullable=True)
-    port = Column(Integer, server_default=str(FTP_PORT), nullable=False)
-    dircache = Column(Boolean(), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('out_conns_ftp', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, host=None, user=None, 
-                 password=None, acct=None, timeout=None, port=None, dircache=None,
-                 cluster_id=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.host = host
-        self.user = user
-        self.password = password
-        self.acct = acct
-        self.timeout = timeout
-        self.port = port
-        self.dircache = dircache
-        self.cluster_id = cluster_id
-
-class OutgoingS3(Base):
-    """ An outgoing S3 connection.
+    acts_as_versioned()
+    using_options(tablename='out_ftp')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    host = Field(Unicode(200), nullable=False)
+    port = Field(Integer(), nullable=False, server_default=str(FTP_PORT))
+    user = Field(Unicode(200), nullable=True)
+    password = Field(Unicode(200), nullable=True)
+    acct = Field(Unicode(200), nullable=True)
+    timeout = Field(Integer(), nullable=True)
+    dircache = Field(Boolean(), nullable=False)
+    
+    cluster = ManyToOne('Cluster', required=True)
+    
+class OutgoingS3(_ZatoBase):
+    """ An outgoing FTP connection.
     """
-    __tablename__ = 'out_s3'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id'), {})
-
-    id = Column(Integer,  Sequence('out_s3_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-
-    prefix = Column(String(200), nullable=False)
-    separator = Column(String(20), server_default=str(S3_DEFAULT_SEPARATOR), nullable=False)
-    key_sync_timeout = Column(Integer, server_default=str(S3_DEFAULT_KEY_SYNC_TIMEOUT), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('out_conns_s3', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, prefix=None,
-                 separator=None, key_sync_timeout=None, cluster_id=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.prefix = prefix
-        self.separator = separator
-        self.key_sync_timeout = key_sync_timeout
-        self.cluster_id = cluster_id
-        
-class OutgoingWMQ(Base):
+    acts_as_versioned()
+    using_options(tablename='out_s3')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    prefix = Field(Unicode(200), nullable=False)
+    separator = Field(Unicode(20), nullable=False, server_default=str(S3_DEFAULT_SEPARATOR))
+    key_sync_timeout = Field(Integer(), nullable=False, server_default=str(S3_DEFAULT_KEY_SYNC_TIMEOUT),)
+    
+    cluster = ManyToOne('Cluster', required=True)
+    
+class OutgoingWMQ(_ZatoBase):
     """ An outgoing WebSphere MQ connection.
     """
-    __tablename__ = 'out_wmq'
-    __table_args__ = (UniqueConstraint('name', 'def_id'), {})
-
-    id = Column(Integer,  Sequence('out_wmq_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-
-    delivery_mode = Column(SmallInteger(), nullable=False)
-    priority = Column(SmallInteger(), server_default=str(WMQ_DEFAULT_PRIORITY), nullable=False)
-    expiration = Column(String(20), nullable=True)
-
-    def_id = Column(Integer, ForeignKey('conn_def_wmq.id', ondelete='CASCADE'), nullable=False)
-    def_ = relationship(ConnDefWMQ, backref=backref('out_conns_wmq', cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, delivery_mode=None,
-                 priority=None, expiration=None, def_id=None, delivery_mode_text=None,
-                 def_name=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.delivery_mode = delivery_mode
-        self.priority = priority
-        self.expiration = expiration
-        self.def_id = def_id
-        self.delivery_mode_text = delivery_mode_text # Not used by the DB
-        self.def_name = def_name # Not used by the DB
-
-class OutgoingZMQ(Base):
+    acts_as_versioned()
+    using_options(tablename='out_wmq')
+    using_table_options(UniqueConstraint('name', 'def_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    
+    delivery_mode = Field(SmallInteger(), nullable=False)
+    priority = Field(SmallInteger(), server_default=str(WMQ_DEFAULT_PRIORITY), nullable=False)
+    expiration = Field(Unicode(20), nullable=True)
+    
+    def_ = ManyToOne('ConnDefWMQ', required=True, colname='def_id')
+    
+class OutgoingZMQ(_ZatoBase):
     """ An outgoing Zero MQ connection.
     """
-    __tablename__ = 'out_zmq'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id'), {})
-
-    id = Column(Integer,  Sequence('out_zmq_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-
-    address = Column(String(200), nullable=False)
-    socket_type = Column(String(20), nullable=False)
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('out_conns_zmq', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, address=None,
-                 socket_type=None, cluster_id=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.socket_type = socket_type
-        self.address = address
-        self.cluster_id = cluster_id
-
-################################################################################
-
-class ChannelAMQP(Base):
+    acts_as_versioned()
+    using_options(tablename='out_zmq')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    address = Field(Unicode(200), nullable=False)
+    socket_type = Field(Unicode(20), nullable=False)
+    
+    cluster = ManyToOne('Cluster', required=True)
+    
+class ChannelAMQP(_ZatoBase):
     """ An incoming AMQP connection.
     """
-    __tablename__ = 'channel_amqp'
-    __table_args__ = (UniqueConstraint('name', 'def_id'), {})
-
-    id = Column(Integer,  Sequence('channel_amqp_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-    queue = Column(String(200), nullable=False)
-    consumer_tag_prefix = Column(String(200), nullable=False)
-
-    service_id = Column(Integer, ForeignKey('service.id', ondelete='CASCADE'), nullable=False)
-    service = relationship(Service, backref=backref('channels_amqp', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def_id = Column(Integer, ForeignKey('conn_def_amqp.id', ondelete='CASCADE'), nullable=False)
-    def_ = relationship(ConnDefAMQP, backref=backref('channels_amqp', cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, queue=None,
-                 consumer_tag_prefix=None, def_id=None, def_name=None,
-                 service_name=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.queue = queue
-        self.consumer_tag_prefix = consumer_tag_prefix
-        self.def_id = def_id
-        self.def_name = def_name # Not used by the DB
-        self.service_name = service_name # Not used by the DB
-
-class ChannelWMQ(Base):
+    acts_as_versioned()
+    using_options(tablename='channel_amqp')
+    using_table_options(UniqueConstraint('name', 'def_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    queue = Field(Unicode(200), nullable=False)
+    consumer_tag_prefix = Field(Unicode(200), nullable=False)
+    
+    def_ = ManyToOne('ConnDefAMQP', required=True, colname='def_id')
+    service = ManyToOne('Service', required=True)
+    
+class ChannelWMQ(_ZatoBase):
     """ An incoming WebSphere MQ connection.
     """
-    __tablename__ = 'channel_wmq'
-    __table_args__ = (UniqueConstraint('name', 'def_id'), {})
-
-    id = Column(Integer,  Sequence('channel_wmq_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-    queue = Column(String(200), nullable=False)
-
-    service_id = Column(Integer, ForeignKey('service.id', ondelete='CASCADE'), nullable=False)
-    service = relationship(Service, backref=backref('channels_wmq', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def_id = Column(Integer, ForeignKey('conn_def_wmq.id', ondelete='CASCADE'), nullable=False)
-    def_ = relationship(ConnDefWMQ, backref=backref('channels_wmq', cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, queue=None,
-                 def_id=None, def_name=None, service_name=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.queue = queue
-        self.def_id = def_id
-        self.def_name = def_name # Not used by the DB
-        self.service_name = service_name # Not used by the DB
-
-class ChannelZMQ(Base):
+    acts_as_versioned()
+    using_options(tablename='channel_wmq')
+    using_table_options(UniqueConstraint('name', 'def_id'))
+    
+    name = Field(Unicode(200), nullable=False)
+    queue = Field(Unicode(200), nullable=False)
+    
+    def_ = ManyToOne('ConnDefWMQ', required=True, colname='def_id')
+    service = ManyToOne('Service', required=True)
+    
+    # To make autocompletion work
+    def_name = None # Not used by the DB
+    service_name = None # Not used by the DB
+    
+class ChannelZMQ(_ZatoBase):
     """ An incoming Zero MQ connection.
     """
-    __tablename__ = 'channel_zmq'
-    __table_args__ = (UniqueConstraint('name', 'cluster_id'), {})
-
-    id = Column(Integer,  Sequence('channel_zmq_seq'), primary_key=True)
-    name = Column(String(200), nullable=False)
-    is_active = Column(Boolean(), nullable=False)
-
-    address = Column(String(200), nullable=False)
-    socket_type = Column(String(20), nullable=False)
-    sub_key = Column(String(200), nullable=True)
+    acts_as_versioned()
+    using_options(tablename='channel_zmq')
+    using_table_options(UniqueConstraint('name', 'cluster_id'))
     
-    service_id = Column(Integer, ForeignKey('service.id', ondelete='CASCADE'), nullable=False)
-    service = relationship(Service, backref=backref('channels_zmq', order_by=name, cascade='all, delete, delete-orphan'))
-
-    cluster_id = Column(Integer, ForeignKey('cluster.id', ondelete='CASCADE'), nullable=False)
-    cluster = relationship(Cluster, backref=backref('channels_zmq', order_by=name, cascade='all, delete, delete-orphan'))
-
-    def __init__(self, id=None, name=None, is_active=None, address=None,
-                 socket_type=None, sub_key=None, service_name=None):
-        self.id = id
-        self.name = name
-        self.is_active = is_active
-        self.address = address
-        self.socket_type = socket_type
-        self.sub_key = sub_key
-        self.service_name = service_name # Not used by the DB
-'''
+    name = Field(Unicode(200), nullable=False)
+    address = Field(Unicode(200), nullable=False)
+    socket_type = Field(Unicode(20), nullable=False)
+    sub_key = Field(Unicode(200), nullable=True)
+    
+    service = ManyToOne('Service', required=True)
+    cluster = ManyToOne('Cluster', required=True)
+    
+################################################################################

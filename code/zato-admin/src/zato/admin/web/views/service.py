@@ -77,7 +77,7 @@ def _edit_create_response(verb, service_elem):
 
 @meth_allowed('GET')
 def index(req):
-    zato_clusters = req.odb.query(Cluster).order_by('name').all()
+    zato_clusters = Cluster.query.order_by('name').all()
     choose_cluster_form = ChooseClusterForm(zato_clusters, req.GET)
     cluster_id = req.GET.get('cluster')
     items = []
@@ -87,7 +87,7 @@ def index(req):
 
     if cluster_id and req.method == 'GET':
         
-        cluster = req.odb.query(Cluster).filter_by(id=cluster_id).first()
+        cluster = Cluster.query.filter_by(id=cluster_id).first()
         zato_message = Element('{%s}zato_message' % zato_namespace)
         zato_message.data = Element('data')
         zato_message.data.cluster_id = cluster_id
