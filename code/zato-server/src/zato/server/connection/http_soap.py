@@ -122,7 +122,7 @@ class Security(object):
         handler_name = '_handle_security_{0}'.format(sec_def_type.replace('-', '_'))
         getattr(self, handler_name)(rid, sec_def, request_data, body, headers)
 
-    def _handle_security_basic_auth(self, rid, sec_def, request_data, body, headers):
+    def _handle_security_basicauth(self, rid, sec_def, request_data, body, headers):
 
         ba_config = self.basic_auth_config[sec_def.name]
         
@@ -137,7 +137,7 @@ class Security(object):
             logger.error(msg)
             raise Forbidden(rid, msg)
         
-    def _handle_security_tech_acc(self, rid, sec_def, request_data, body, headers):
+    def _handle_security_technicalaccount(self, rid, sec_def, request_data, body, headers):
         """ Handles the 'tech_acc' security config type.
         """
         zato_headers = ('X_ZATO_USER', 'X_ZATO_PASSWORD')

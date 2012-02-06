@@ -259,6 +259,9 @@ class Service(_ZatoBase):
     channel_amqp_list = OneToMany('ChannelAMQP')
     channel_wmq_list = OneToMany('ChannelWMQ')
     channel_zmq_list = OneToMany('ChannelZMQ')
+    
+    # To make autocompletion work
+    usage_count = None # Not used by the database    
 
 class DeployedService(_ZatoBase):
     """ A service deployed to a server.

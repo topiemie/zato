@@ -62,8 +62,8 @@ class ODBManager(object):
         self.server = server
         self.cluster = cluster
 
-    #def session(self):
-    #    return self._Session()
+    def session(self):
+        return self._session()
 
     def close(self):
         self._session.close()
@@ -111,15 +111,8 @@ class ODBManager(object):
             raise
 
     def get_url_security(self, server):
-        """ Returns the security configuration of HTTP URLs.
+        """ Returns the security configuration of HTTP/SOAP URLs.
         """
-
-        # What DB class to fetch depending on the string value of the security type.
-        sec_type_db_class = {
-            'tech_acc': TechnicalAccount,
-            'basic_auth': BasicAuth,
-            'wss_username_password': WSSDefinition
-            }
 
         result = {}
 
@@ -129,37 +122,27 @@ class ODBManager(object):
             result[item.url_path] = Bunch()
             result[item.url_path].transport = item.transport
             
-            '''
-            if item.security_def_type:
-                result[item.url_path].sec_def = Bunch()
-                result[item.url_path].sec_def.type = item.security_def_type
-                
-                # Will raise KeyError if the DB gets somehow misconfigured.
-                db_class = sec_type_db_class[item.security_def_type]
-    
-                sec_def = self._session.query(db_class).\
-                        filter(db_class.security_def_id==item.security_def_id).\
-                        one()
-    
-                if item.security_def_type == 'tech_acc':
-                    result[item.url_path].sec_def.name = sec_def.name
-                    result[item.url_path].sec_def.password = sec_def.password
-                    result[item.url_path].sec_def.salt = sec_def.salt
-                elif item.security_def_type == 'basic_auth':
-                    result[item.url_path].sec_def.name = sec_def.name
-                    result[item.url_path].sec_def.password = sec_def.password
-                    result[item.url_path].sec_def.domain = sec_def.domain
-                elif item.security_def_type == 'wss_username_password':
-                    result[item.url_path].sec_def.username = sec_def.username
-                    result[item.url_path].sec_def.password = sec_def.password
-                    result[item.url_path].sec_def.password_type = sec_def.password_type
-                    result[item.url_path].sec_def.reject_empty_nonce_ts = sec_def.reject_empty_nonce_ts
-                    result[item.url_path].sec_def.reject_stale_username = sec_def.reject_stale_username
-                    result[item.url_path].sec_def.expiry_limit = sec_def.expiry_limit
-                    result[item.url_path].sec_def.nonce_freshness = sec_def.nonce_freshness
-            else:
-                result[item.url_path].sec_def = ZATO_NONE
-                '''
+            sec_def = item.HTTPSOAPSecurity
+            
+            result[item.url_path].sec_def = Bunch()
+            result[item.url_path].sec_def.type = sec_def.row_type
+            
+            if sec_def.row_type == 'technicalaccount':
+                result[item.url_path].sec_def.name = sec_def.name
+                result[item.url_path].sec_def.password = sec_def.password
+                result[item.url_path].sec_def.salt = sec_def.salt
+            elif sec_def.row_type == 'basicauth':
+                result[item.url_path].sec_def.name = sec_def.name
+                result[item.url_path].sec_def.password = sec_def.password
+                result[item.url_path].sec_def.domain = sec_def.domain
+            elif sec_def.row_type == 'wssdefinition':
+                result[item.url_path].sec_def.username = sec_def.username
+                result[item.url_path].sec_def.password = sec_def.password
+                result[item.url_path].sec_def.password_type = sec_def.password_type
+                result[item.url_path].sec_def.reject_empty_nonce_ts = sec_def.reject_empty_nonce_ts
+                result[item.url_path].sec_def.reject_stale_username = sec_def.reject_stale_username
+                result[item.url_path].sec_def.expiry_limit = sec_def.expiry_limit
+                result[item.url_path].sec_def.nonce_freshness = sec_def.nonce_freshness
 
         return result
 

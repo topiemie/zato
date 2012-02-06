@@ -105,7 +105,12 @@ def index(req):
                 is_internal = is_boolean(msg_item.is_internal.text)
                 usage_count = msg_item.usage_count.text
                 
-                item =  Service(id, name, is_active, impl_name, is_internal, None, usage_count)
+                item =  Service()
+                item.id = id
+                item.name = name
+                item.is_active = is_active
+                item.impl_name = impl_name
+                item.is_internal
                 items.append(item)
 
     return_data = {'zato_clusters':zato_clusters,
@@ -129,7 +134,7 @@ def create(req):
 
 @meth_allowed('POST')
 def edit(req):
-    cluster = req.odb.query(Cluster).filter_by(id=req.POST['cluster_id']).first()
+    cluster = Cluster.query.filter_by(id=req.POST['cluster_id']).first()
     try:
         zato_message = _get_edit_create_message(req.POST, 'edit-')
         _, zato_message, soap_response = invoke_admin_service(cluster, 'zato:service.edit', zato_message)
@@ -142,7 +147,7 @@ def edit(req):
 
 @meth_allowed('GET')
 def details(req, service_id):
-    zato_clusters = req.odb.query(Cluster).order_by('name').all()
+    zato_clusters = Cluster.query.order_by('name').all()
     choose_cluster_form = ChooseClusterForm(zato_clusters, req.GET)
     cluster_id = req.GET.get('cluster')
     service = None
@@ -199,7 +204,7 @@ def channel(req, service_id, cluster_id):
 @meth_allowed('POST')
 def delete(req, service_id, cluster_id):
     
-    cluster = req.odb.query(Cluster).filter_by(id=cluster_id).first()
+    cluster = Cluster.query.filter_by(id=cluster_id).first()
     
     try:
         zato_message = Element('{%s}zato_message' % zato_namespace)

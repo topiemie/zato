@@ -24,9 +24,9 @@ from sqlalchemy.sql.expression import case, literal_column
 
 # Zato
 from zato.common.odb.model import ChannelAMQP, ChannelWMQ, ChannelZMQ, Cluster, \
-    ConnDefAMQP, ConnDefWMQ, CronStyleJob, BasicAuth, HTTPSOAP, IntervalBasedJob, \
-    Job, OutgoingAMQP,  OutgoingFTP, OutgoingS3, OutgoingWMQ, OutgoingZMQ, Service, \
-    TechnicalAccount, WSSDefinition
+    ConnDefAMQP, ConnDefWMQ, CronStyleJob, BasicAuth, HTTPSOAP, HTTPSOAPSecurity, \
+    IntervalBasedJob, Job, OutgoingAMQP,  OutgoingFTP, OutgoingS3, OutgoingWMQ, \
+    OutgoingZMQ, Service, TechnicalAccount, WSSDefinition
 
 # ##############################################################################
 
@@ -276,6 +276,18 @@ def channel_zmq_list(session, cluster_id):
 # ##############################################################################
 
 def _http_soap(session, cluster_id):
+    
+    return session.query(HTTPSOAP.id, HTTPSOAP.name, HTTPSOAP.is_active, 
+            HTTPSOAP.is_internal, HTTPSOAP.transport, HTTPSOAP.url_path, 
+            HTTPSOAP.method, HTTPSOAP.soap_action, HTTPSOAP.soap_version, 
+            HTTPSOAPSecurity,
+            Service.id.label('service_id'),
+            Service.name.label('service_name'),
+            Service.impl_name).\
+           filter(Cluster.id==HTTPSOAP.cluster_id).\
+           filter(Cluster.id==cluster_id).\
+           filter(HTTPSOAP.service_id==Service.id).\
+           order_by(HTTPSOAP.name)
 
     '''
     tech_acc_case_id = (SecurityDefinition.security_def_type=='tech_acc', 
@@ -294,6 +306,7 @@ def _http_soap(session, cluster_id):
                 literal_column('(select http_basic_auth_def.name from http_basic_auth_def where http_basic_auth_def.security_def_id = security_def.id)'))
                 '''
     
+    '''
     return session.query(HTTPSOAP.id, HTTPSOAP.name, HTTPSOAP.is_active, 
             HTTPSOAP.is_internal, HTTPSOAP.transport, HTTPSOAP.url_path, 
             HTTPSOAP.method, HTTPSOAP.soap_action, HTTPSOAP.soap_version, 
@@ -309,8 +322,9 @@ def _http_soap(session, cluster_id):
         filter(Service.id==HTTPSOAP.service_id).\
         filter(Cluster.id==cluster_id).\
         order_by(HTTPSOAP.name)
+        '''
 
-# No point in creating a new function if we can aliast an already existing one.
+# No point in creating a new function if we can alias an already existing one.
 http_soap_security_list = _http_soap
 
 def http_soap(session, cluster_id, id):
