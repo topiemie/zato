@@ -63,3 +63,23 @@ The 'Active' flag
 
 If a channel is made inactive, its underlying MQ connection
 will be stopped but the connector itself will be still running.
+
+More information
+----------------
+  
+==================== =======================================================================================================
+Chapter              Links
+==================== =======================================================================================================
+Web admin            * :doc:`JMS WebSphere MQ definitions<../conn-def/jms-wmq>`
+                     * :doc:`JMS WebSphere MQ outgoing connections<../outgoing/jms-wmq>`
+                     
+Programming guide    * :doc:`Channels<../../progguide/channels>`
+                     * :doc:`JMS WebSphere MQ outgoing connections<../../progguide/outconn/jms-wmq>`
+                     
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.channel.jms-wmq.* <../../public-api/details/zato.channel.jms-wmq>`
+                     * :doc:`zato.channel.jms-wmq.create <../../public-api/details/zato.channel.jms-wmq.create>`
+                     * :doc:`zato.channel.jms-wmq.delete <../../public-api/details/zato.channel.jms-wmq.delete>`
+                     * :doc:`zato.channel.jms-wmq.edit <../../public-api/details/zato.channel.jms-wmq.edit>`
+                     * :doc:`zato.channel.jms-wmq.get-list <../../public-api/details/zato.channel.jms-wmq.get-list>`
+==================== =======================================================================================================

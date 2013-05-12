@@ -62,3 +62,25 @@ Deletes an AMQP definition and all the connections that make use of it.
 
   It needs to be emphasized that any channels or outgoing
   connections that were using the definition will also be deleted automatically.
+
+More information
+----------------
+  
+==================== =======================================================================================================
+Chapter              Links
+==================== =======================================================================================================
+Web admin            * :doc:`AMQP channels<../channels/amqp>`
+                     * :doc:`AMQP outgoing connections<../outgoing/amqp>`
+                     
+Programming guide    * :doc:`Channels<../../progguide/channels>`
+                     * :doc:`AMQP outgoing connections<../../progguide/outconn/amqp>`
+                     
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.definition.amqp.* <../../public-api/details/zato.definition.amqp>`
+                     * :doc:`zato.definition.amqp.change-password <../../public-api/details/zato.definition.amqp.change-password>`
+                     * :doc:`zato.definition.amqp.create <../../public-api/details/zato.definition.amqp.create>`
+                     * :doc:`zato.definition.amqp.delete <../../public-api/details/zato.definition.amqp.delete>`
+                     * :doc:`zato.definition.amqp.edit <../../public-api/details/zato.definition.amqp.edit>`
+                     * :doc:`zato.definition.amqp.get-by-id <../../public-api/details/zato.definition.amqp.get-by-id>`
+                     * :doc:`zato.definition.amqp.get-list <../../public-api/details/zato.definition.amqp.get-list>`
+==================== =======================================================================================================

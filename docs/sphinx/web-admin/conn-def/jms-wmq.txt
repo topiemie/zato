@@ -75,3 +75,24 @@ Deletes a JMS WebSphere MQ definition and all the connections that make use of i
 
   It needs to be emphasized that any channels or outgoing
   connections that were using the definition will also be deleted automatically.
+  
+More information
+----------------
+  
+==================== =======================================================================================================
+Chapter              Links
+==================== =======================================================================================================
+Web admin            * :doc:`JMS WebSphere MQ channels<../channels/jms-wmq>`
+                     * :doc:`JMS WebSphere MQ outgoing connections<../outgoing/jms-wmq>`
+                     
+Programming guide    * :doc:`Channels<../../progguide/channels>`
+                     * :doc:`JMS WebSphere MQ outgoing connections<../../progguide/outconn/jms-wmq>`
+                     
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.definition.jms-wmq.* <../../public-api/details/zato.definition.jms-wmq>`
+                     * :doc:`zato.definition.jms-wmq.create <../../public-api/details/zato.definition.jms-wmq.create>`
+                     * :doc:`zato.definition.jms-wmq.delete <../../public-api/details/zato.definition.jms-wmq.delete>`
+                     * :doc:`zato.definition.jms-wmq.edit <../../public-api/details/zato.definition.jms-wmq.edit>`
+                     * :doc:`zato.definition.jms-wmq.get-by-id <../../public-api/details/zato.definition.jms-wmq.get-by-id>`
+                     * :doc:`zato.definition.jms-wmq.get-list <../../public-api/details/zato.definition.jms-wmq.get-list>`
+==================== =======================================================================================================

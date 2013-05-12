@@ -43,3 +43,14 @@ The credentials can be added and updated using the command line.
    block the access. 
    
    Future Zato versions will certainly add a lot in this area.
+   
+More information
+----------------
+
+======= ============================================================
+Chapter Links
+======= ============================================================
+CLI     * :doc:`Overview <../admin/cli/index>`
+        * :doc:`zato create user <../admin/cli/create-user>`
+        * :doc:`zato update password <../admin/cli/update-password>`
+======= ============================================================

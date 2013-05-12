@@ -52,3 +52,19 @@ Deletes a security definition and all the connections that make use of it.
 
   It needs to be emphasized that any plain HTTP or SOAP channels and outgoing
   connections that were using the definition will also be deleted automatically.
+  
+More information
+----------------
+
+==================== ====================================================================================================================
+Chapter              Links
+==================== ====================================================================================================================
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.security.* <../../public-api/details/zato.security>`
+                     * :doc:`zato.security.basic-auth.* <../../public-api/details/zato.security.basic-auth>`
+                     * :doc:`zato.security.basic-auth.change-password <../../public-api/details/zato.security.basic-auth.change-password>`
+                     * :doc:`zato.security.basic-auth.create <../../public-api/details/zato.security.basic-auth.create>`
+                     * :doc:`zato.security.basic-auth.delete <../../public-api/details/zato.security.basic-auth.delete>`
+                     * :doc:`zato.security.basic-auth.edit <../../public-api/details/zato.security.basic-auth.edit>`
+                     * :doc:`zato.security.basic-auth.get-list <../../public-api/details/zato.security.basic-auth.get-list>`
+==================== ====================================================================================================================

@@ -57,3 +57,16 @@ how they looked like.
   As with :doc:`sample requests/responses <./sample-req-resp>` - only the actual
   payload the service received/produced is shown - this is a caveat only
   services invoked through SOAP XML channels should be concerned with.
+
+More information
+----------------
+  
+==================== ===========================================================================================================
+Chapter              Links
+==================== ===========================================================================================================
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.service.* <../../public-api/details/zato.service>`
+                     * :doc:`zato.service.edit <../../public-api/details/zato.service.edit>`
+                     * :doc:`zato.service.slow-response.get <../../public-api/details/zato.service.slow-response.get>`
+                     * :doc:`zato.service.slow-response.get-list <../../public-api/details/zato.service.slow-response.get-list>`
+==================== ===========================================================================================================

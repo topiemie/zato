@@ -67,3 +67,23 @@ The 'Active' flag
 
 If a channel is made inactive, an attempt to invoke it will result in an HTTP
 404 error. 
+
+More information
+----------------
+  
+==================== ===================================================================================
+Chapter              Links
+==================== ===================================================================================
+Web admin            * :doc:`SOAP <../channels/soap>`
+                     
+Programming guide    * :doc:`Channels<../../progguide/channels>`
+                     * :doc:`Plain HTTP and SOAP outgoing connections<../../progguide/outconn/http>`
+                     
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.http-soap.* <../../public-api/details/zato.http-soap>`
+                     * :doc:`zato.http-soap.create <../../public-api/details/zato.http-soap.create>`
+                     * :doc:`zato.http-soap.delete <../../public-api/details/zato.http-soap.delete>`
+                     * :doc:`zato.http-soap.edit <../../public-api/details/zato.http-soap.edit>`
+                     * :doc:`zato.http-soap.get-list <../../public-api/details/zato.http-soap.get-list>`
+                     * :doc:`zato.http-soap.ping <../../public-api/details/zato.http-soap.ping>`
+==================== ===================================================================================

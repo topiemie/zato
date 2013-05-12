@@ -65,3 +65,23 @@ The 'Active' flag
 
 If a channel is made inactive, its underlying AMQP connection will be stopped
 but the connector itself will be still running.
+
+More information
+----------------
+  
+==================== =======================================================================================================
+Chapter              Links
+==================== =======================================================================================================
+Web admin            * :doc:`AMQP definitions<../conn-def/amqp>`
+                     * :doc:`AMQP outgoing connections<../outgoing/amqp>`
+                     
+Programming guide    * :doc:`Channels<../../progguide/channels>`
+                     * :doc:`AMQP outgoing connections<../../progguide/outconn/amqp>`
+                     
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.channel.amqp.* <../../public-api/details/zato.channel.amqp>`
+                     * :doc:`zato.channel.amqp.create <../../public-api/details/zato.channel.amqp.create>`
+                     * :doc:`zato.channel.amqp.delete <../../public-api/details/zato.channel.amqp.delete>`
+                     * :doc:`zato.channel.amqp.edit <../../public-api/details/zato.channel.amqp.edit>`
+                     * :doc:`zato.channel.amqp.get-list <../../public-api/details/zato.channel.amqp.get-list>`
+==================== =======================================================================================================

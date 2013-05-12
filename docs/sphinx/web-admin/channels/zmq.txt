@@ -64,3 +64,22 @@ The 'Active' flag
 
 If a channel is made inactive, its underlying ZeroMQ connection will be stopped
 but the connector itself will be still running.
+
+More information
+----------------
+  
+==================== =======================================================================================
+Chapter              Links
+==================== =======================================================================================
+Web admin            * :doc:`ZeroMQ outgoing connections<../outgoing/zmq>`
+                     
+Programming guide    * :doc:`Channels<../../progguide/channels>`
+                     * :doc:`ZeroMQ outgoing connections<../../progguide/outconn/zmq>`
+                     
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.channel.zmq.* <../../public-api/details/zato.channel.zmq>`
+                     * :doc:`zato.channel.zmq.create <../../public-api/details/zato.channel.zmq.create>`
+                     * :doc:`zato.channel.zmq.delete <../../public-api/details/zato.channel.zmq.delete>`
+                     * :doc:`zato.channel.zmq.edit <../../public-api/details/zato.channel.zmq.edit>`
+                     * :doc:`zato.channel.zmq.get-list <../../public-api/details/zato.channel.zmq.get-list>`
+==================== =======================================================================================

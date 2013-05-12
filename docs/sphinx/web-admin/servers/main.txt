@@ -39,3 +39,15 @@ hot-reloads the load-balancer's configuration.
 
 .. image:: /gfx/web-admin/servers/edit.png
    :width: 90%
+   
+More information
+----------------
+
+======= ===============================================================================
+Chapter Links
+======= ===============================================================================
+API     * :doc:`Overview <../../public-api/intro>`
+        * :doc:`zato.server.* <../../public-api/details/zato.server>`
+        * :doc:`zato.server.edit <../../public-api/details/zato.server.edit>`
+        * :doc:`zato.server.get-by-id <../../public-api/details/zato.server.get-by-id>`
+======= ===============================================================================

@@ -21,3 +21,14 @@ Path   File-system path the service has been deployed from
 Hash   Hash of a Python module the service is in
 Source Source code of the module
 ====== ======================================================
+
+More information
+----------------
+
+==================== =============================================================================================
+Chapter              Links
+==================== =============================================================================================
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.service.* <../../public-api/details/zato.service>`
+                     * :doc:`zato.service.get-source-info <../../public-api/details/zato.service.get-source-info>`
+==================== =============================================================================================

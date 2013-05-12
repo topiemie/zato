@@ -27,3 +27,16 @@ Direct address    WSDL download address as exposed by the load-balancer.
                   Useful if servers are not to be exposed to external
                   users.
 ================= ======================================================
+
+More information
+----------------
+
+==================== ===============================================================================
+Chapter              Links
+==================== ===============================================================================
+API                  * :doc:`Overview <../../public-api/intro>`
+                     * :doc:`zato.service.* <../../public-api/details/zato.service>`
+                     * :doc:`zato.service.get-wsdl <../../public-api/details/zato.service.get-wsdl>`
+                     * :doc:`zato.service.has-wsdl <../../public-api/details/zato.service.has-wsdl>`
+                     * :doc:`zato.service.set-wsdl <../../public-api/details/zato.service.set-wsdl>`
+==================== ===============================================================================

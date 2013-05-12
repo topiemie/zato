@@ -50,3 +50,15 @@ Active         Whether it can be invoked
 Slow threshold Its :doc:`slow response time threshold <../service-details/slow-responses>`,
                in milliseconds
 ============== ============================================================================
+
+More information
+----------------
+
+================= ================================================================================
+Chapter           Links
+================= ================================================================================
+Programming guide * :doc:`Overview <../../progguide/overview>`
+API               * :doc:`Overview <../../public-api/intro>`
+                  * :doc:`zato.service.* <../../public-api/details/zato.service>`
+                  * :doc:`zato.service.get-list <../../public-api/details/zato.service.get-list>`
+================= ================================================================================
